@@ -57,13 +57,13 @@ geronimo-workflow.md
 Current phase:
 
 ```text
-Project setup
+Minimal project structure
 ```
 
 Current focus:
 
 ```text
-Initialize the repository, project documents, uv environment, and first commit.
+Create the first src/geronimo structure, then define the Article domain model.
 ```
 
 Current repository name:
@@ -105,7 +105,7 @@ In plain language:
 
 ### Phase 0: Project Setup
 
-Status: In progress
+Status: Completed
 
 Tasks:
 
@@ -113,11 +113,11 @@ Tasks:
 - [x] Install `uv`
 - [x] Create architecture document
 - [x] Create workflow document
-- [ ] Initialize repository with `uv`
-- [ ] Add `.gitignore`
-- [ ] Add core dependencies
-- [ ] Add development dependencies
-- [ ] Commit initial project setup
+- [x] Initialize repository with `uv`
+- [x] Add `.gitignore`
+- [x] Add core dependencies
+- [x] Add development dependencies
+- [x] Commit initial project setup
 
 Core dependencies:
 
@@ -136,7 +136,7 @@ ruff
 
 ### Phase 1: Minimal Project Structure
 
-Status: Not started
+Status: In progress
 
 Goal:
 
@@ -302,6 +302,9 @@ Rules:
 3. Ask ChatGPT to reference both `geronimo-architecture.md` and `geronimo-workflow.md`.
 4. After a meaningful decision or completed task, update this workflow file.
 5. Keep architecture decisions in `geronimo-architecture.md`; keep progress and next actions here.
+6. Use the workflow coordination chat for checking current progress, deciding the next task, and keeping docs in sync.
+7. When updating docs, compare the ChatGPT project copy and the local repository copy, then keep both aligned to the newest accurate version.
+8. If other geronimo task chats exist, review their latest progress before updating this workflow.
 
 ## 7. How ChatGPT Should Help
 
@@ -423,6 +426,34 @@ Reason:
 This is simpler and safer than relying only on Python-side duplicate checks.
 ```
 
+### 2026-07-20: Project Setup Completed
+
+Decision:
+
+```text
+Phase 0 is complete. The local repository has uv project files, .gitignore, core dependencies, development dependencies, and initial commits.
+```
+
+Reason:
+
+```text
+The local repository at ~/Projects/geronimo contains pyproject.toml, uv.lock, .gitignore, docs, and a clean git history with setup commits.
+```
+
+### 2026-07-20: Workflow Coordination Chat
+
+Decision:
+
+```text
+Use this chat to check the current workflow, give the next task, and update docs only.
+```
+
+Reason:
+
+```text
+Implementation practice should stay in focused task chats or in the user's local work, while this chat keeps project state aligned.
+```
+
 ## 10. Open Questions
 
 Questions to resolve later:
@@ -453,11 +484,11 @@ Use short updates. This file should stay useful as a project map, not become a d
 Immediate next action:
 
 ```text
-Finish repository initialization with uv, dependencies, .gitignore, and first commit.
+User creates the minimal Phase 1 project structure under src/geronimo, tests, config, and data.
 ```
 
 After that:
 
 ```text
-Create the minimal src/geronimo structure and implement the Article domain model.
+Implement the Article domain model as the first Phase 2 task.
 ```
