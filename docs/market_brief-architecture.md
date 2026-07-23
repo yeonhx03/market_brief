@@ -1,8 +1,8 @@
-# Geronimo Architecture
+# Market Brief Architecture
 
 ## 1. Project Goals
 
-`geronimo` is a Python-based project for practicing Python while building a practical stock news collection and analysis tool.
+`market_brief` is a Python-based project for practicing Python while building a practical stock news collection and analysis tool.
 
 The project has four main goals:
 
@@ -142,7 +142,7 @@ News collection is designed as asynchronous from the beginning because it involv
 ```python
 from typing import Protocol
 
-from stock_news.domain.models.article import Article
+from market_brief.domain.models.article import Article
 
 
 class NewsCollector(Protocol):
@@ -155,7 +155,7 @@ The repository remains synchronous for the MVP.
 ```python
 from typing import Protocol
 
-from stock_news.domain.models.article import Article
+from market_brief.domain.models.article import Article
 
 
 class ArticleRepository(Protocol):
@@ -174,8 +174,8 @@ Analyzers are also synchronous in the MVP.
 ```python
 from typing import Protocol
 
-from stock_news.domain.models.article import Article
-from stock_news.domain.models.analysis_result import AnalysisResult
+from market_brief.domain.models.article import Article
+from market_brief.domain.models.analysis_result import AnalysisResult
 
 
 class NewsAnalyzer(Protocol):
@@ -237,9 +237,9 @@ Bootstrap is the only place that wires concrete implementations together.
 Example:
 
 ```python
-from stock_news.application.services.collect_news import CollectNewsService
-from stock_news.infrastructure.collectors.rss_collector import RSSCollector
-from stock_news.infrastructure.repositories.sqlite_repository import SQLiteArticleRepository
+from market_brief.application.services.collect_news import CollectNewsService
+from market_brief.infrastructure.collectors.rss_collector import RSSCollector
+from market_brief.infrastructure.repositories.sqlite_repository import SQLiteArticleRepository
 
 
 def build_collect_news_service() -> CollectNewsService:
@@ -650,7 +650,7 @@ Microservices
 Core stack:
 
 ```text
-Python 3.12+
+Python 3.11+
 uv
 httpx
 feedparser
@@ -717,9 +717,9 @@ These may become useful later, but they are unnecessary for the first working ve
 Long-term target structure:
 
 ```text
-geronimo/
+market_brief/
 ├── src/
-│   └── stock_news/
+│   └── market_brief/
 │       ├── domain/
 │       │   ├── models/
 │       │   │   ├── article.py
@@ -779,14 +779,14 @@ Do not create every file on day one.
 Initial files can be limited to:
 
 ```text
-src/stock_news/domain/models/article.py
-src/stock_news/application/ports/news_collector.py
-src/stock_news/application/ports/article_repository.py
-src/stock_news/application/services/collect_news.py
-src/stock_news/infrastructure/collectors/rss_collector.py
-src/stock_news/infrastructure/repositories/sqlite_repository.py
-src/stock_news/interfaces/cli/commands.py
-src/stock_news/bootstrap.py
+src/market_brief/domain/models/article.py
+src/market_brief/application/ports/news_collector.py
+src/market_brief/application/ports/article_repository.py
+src/market_brief/application/services/collect_news.py
+src/market_brief/infrastructure/collectors/rss_collector.py
+src/market_brief/infrastructure/repositories/sqlite_repository.py
+src/market_brief/interfaces/cli/commands.py
+src/market_brief/bootstrap.py
 ```
 
 Add more files only when there is a real feature that needs them.
@@ -879,6 +879,8 @@ Example future signal:
 ```
 
 ## 15. Current Design Decisions
+
+This section summarizes the current architecture choices. Dated decision history belongs in `market_brief-workflow.md`.
 
 Accepted decisions:
 

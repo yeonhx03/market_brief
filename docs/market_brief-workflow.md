@@ -1,8 +1,8 @@
-# Geronimo Workflow
+# Market Brief Workflow
 
-This document tracks the working flow of the `geronimo` project.
+This document tracks the working flow of the `market_brief` project.
 
-Use this file as the project's operational map. While `geronimo-architecture.md` defines the architecture, this file tracks what the project is doing now, what has been decided, what is next, and how separate ChatGPT/Codex chats should stay aligned.
+Use this file as the project's operational map. While `market_brief-architecture.md` defines the architecture and `docs/AGENT.md` defines agent behavior, this file tracks what the project is doing now, what has been decided, and what is next.
 
 ## 1. Purpose of This File
 
@@ -30,26 +30,21 @@ Because task-specific chats can drift, this file should be used as the shared so
 - next tasks
 - major decisions
 - known blockers
-- files or documents that should be referenced
-- rules for how ChatGPT and Codex should help
+- open questions
 
-## 2. Core Reference Files
+## 2. Document Roles
 
-Always consider these files before making architectural or workflow decisions:
-
-```text
-geronimo-architecture.md
-geronimo-workflow.md
-```
-
-Roles:
+Use each project document for its own purpose:
 
 ```text
-geronimo-architecture.md
+docs/AGENT.md
+-> agent working rules, required reading, Git/GitHub behavior
+
+market_brief-architecture.md
 -> architecture, dependency rules, MVP scope, stack, future expansion
 
-geronimo-workflow.md
--> current progress, task flow, decisions, next actions, chat organization
+market_brief-workflow.md
+-> current progress, task roadmap, decisions, open questions, next actions
 ```
 
 ## 3. Current Project Status
@@ -57,19 +52,19 @@ geronimo-workflow.md
 Current phase:
 
 ```text
-Minimal project structure
+Application Ports
 ```
 
 Current focus:
 
 ```text
-Create the first src/geronimo structure, then define the Article domain model.
+Start the NewsCollector port in a focused task chat.
 ```
 
 Current repository name:
 
 ```text
-geronimo
+market_brief
 ```
 
 Current architecture:
@@ -109,7 +104,7 @@ Status: Completed
 
 Tasks:
 
-- [x] Decide project name: `geronimo`
+- [x] Decide project name: `market_brief`
 - [x] Install `uv`
 - [x] Create architecture document
 - [x] Create workflow document
@@ -136,7 +131,7 @@ ruff
 
 ### Phase 1: Minimal Project Structure
 
-Status: In progress
+Status: Completed
 
 Goal:
 
@@ -145,7 +140,7 @@ Create only the first useful structure, not every future file.
 Initial directories:
 
 ```text
-src/geronimo/
+src/market_brief/
 tests/
 docs/
 config/
@@ -155,16 +150,16 @@ data/
 Initial files:
 
 ```text
-src/geronimo/domain/models/article.py
-src/geronimo/application/ports/news_collector.py
-src/geronimo/application/ports/article_repository.py
-src/geronimo/application/services/collect_news.py
-src/geronimo/bootstrap.py
+src/market_brief/domain/models/article.py
+src/market_brief/application/ports/news_collector.py
+src/market_brief/application/ports/article_repository.py
+src/market_brief/application/services/collect_news.py
+src/market_brief/bootstrap.py
 ```
 
 ### Phase 2: Article Model
 
-Status: Not started
+Status: Completed
 
 Goal:
 
@@ -178,6 +173,30 @@ datetime
 type hints
 frozen objects
 domain model design
+```
+
+### Phase 2.5: Application Ports
+
+Status: In progress
+
+Goal:
+
+Define the first Application Ports before writing concrete infrastructure.
+
+Initial files:
+
+```text
+src/market_brief/application/ports/news_collector.py
+src/market_brief/application/ports/article_repository.py
+```
+
+Learning focus:
+
+```text
+typing.Protocol
+async method contracts
+repository contracts
+dependency inversion
 ```
 
 ### Phase 3: RSS Collector
@@ -228,8 +247,8 @@ Add command-line entry points for collecting and viewing latest articles.
 Example commands:
 
 ```text
-uv run python -m geronimo collect
-uv run python -m geronimo latest --limit 10
+uv run python -m market_brief collect
+uv run python -m market_brief latest --limit 10
 ```
 
 Learning focus:
@@ -299,82 +318,20 @@ Rules:
 
 1. Use one chat per focused task.
 2. At the start of a new task chat, mention the relevant phase from this workflow file.
-3. Ask ChatGPT to reference both `geronimo-architecture.md` and `geronimo-workflow.md`.
+3. Reference `docs/AGENT.md`, `market_brief-architecture.md`, and `market_brief-workflow.md` when project direction matters.
 4. After a meaningful decision or completed task, update this workflow file.
-5. Keep architecture decisions in `geronimo-architecture.md`; keep progress and next actions here.
+5. Keep architecture decisions in `market_brief-architecture.md`; keep progress and next actions here.
 6. Use the workflow coordination chat for checking current progress, deciding the next task, and keeping docs in sync.
-7. When updating docs, compare the ChatGPT project copy and the local repository copy, then keep both aligned to the newest accurate version.
-8. If other geronimo task chats exist, review their latest progress before updating this workflow.
+7. If other market_brief task chats exist, review their latest progress before updating this workflow.
 
-## 7. How ChatGPT Should Help
-
-Default behavior:
-
-```text
-Explain concepts.
-Ask clarifying questions when needed.
-Give implementation steps.
-Give hints before full code.
-Review user-written code.
-Point out design risks.
-Keep the MVP small.
-Avoid unnecessary tools and abstractions.
-```
-
-ChatGPT should not:
-
-```text
-Jump straight to full implementation unless asked.
-Expand scope beyond MVP without explaining why.
-Introduce major new dependencies casually.
-Mix future trading-system concerns into MVP code.
-Ignore the architecture document.
-Ignore this workflow file.
-```
-
-When the user is stuck:
-
-```text
-1. Identify the exact failing point.
-2. Explain the concept.
-3. Give a small hint.
-4. If still blocked, provide a focused example.
-5. Only provide full code when explicitly requested.
-```
-
-## 8. How Codex Should Help
-
-Default behavior:
-
-```text
-Inspect the repository.
-Explain what existing code does.
-Suggest small next steps.
-Run tests when requested.
-Review diffs.
-Make minimal changes only when explicitly asked.
-```
-
-Because the project is for Python practice, Codex should avoid taking over implementation unless the user asks for direct edits.
-
-When Codex edits files:
-
-```text
-1. Explain which files will change and why.
-2. Keep changes small.
-3. Preserve the agreed architecture.
-4. Run relevant checks if possible.
-5. Summarize what changed.
-```
-
-## 9. Decision Log
+## 7. Decision Log
 
 ### 2026-07-17: Project Name
 
 Decision:
 
 ```text
-Use geronimo as the repository and project name.
+Use market_brief as the repository and project name.
 ```
 
 Reason:
@@ -437,7 +394,7 @@ Phase 0 is complete. The local repository has uv project files, .gitignore, core
 Reason:
 
 ```text
-The local repository at ~/Projects/geronimo contains pyproject.toml, uv.lock, .gitignore, docs, and a clean git history with setup commits.
+The local repository at ~/Projects/market_brief contains pyproject.toml, uv.lock, .gitignore, docs, and a clean git history with setup commits.
 ```
 
 ### 2026-07-20: Workflow Coordination Chat
@@ -454,17 +411,58 @@ Reason:
 Implementation practice should stay in focused task chats or in the user's local work, while this chat keeps project state aligned.
 ```
 
-## 10. Open Questions
+### 2026-07-21: Python Version Baseline
+
+Decision:
+
+```text
+Use Python 3.11 as the project's current baseline version.
+```
+
+Reason:
+
+```text
+The local repository now pins .python-version to 3.11 and pyproject.toml requires Python >=3.11.
+```
+
+### 2026-07-22: Package Name
+
+Decision:
+
+```text
+Use market_brief as both the repository name and the Python package name.
+```
+
+Reason:
+
+```text
+The local source tree is src/market_brief, and architecture examples should match the actual package.
+```
+
+### 2026-07-22: Move To Application Ports
+
+Decision:
+
+```text
+Treat the Article model as complete enough for now and start a focused NewsCollector port task.
+```
+
+Reason:
+
+```text
+The next learning step is to define the application's external contracts before implementing RSS collection.
+```
+
+## 8. Open Questions
 
 Questions to resolve later:
 
 - Which RSS source should be implemented first?
-- Should the package name be `geronimo` or a more descriptive internal name?
 - Should configuration use TOML, YAML, or plain Python initially?
 - Should first Siri integration use a local file or FastAPI?
 - Which watchlist keywords and tickers should be included first?
 
-## 11. Update Rules
+## 9. Update Rules
 
 Update this file when:
 
@@ -479,16 +477,16 @@ Update this file when:
 
 Use short updates. This file should stay useful as a project map, not become a diary.
 
-## 12. Next Action
+## 10. Next Action
 
 Immediate next action:
 
 ```text
-User creates the minimal Phase 1 project structure under src/geronimo, tests, config, and data.
+Create the NewsCollector port in src/market_brief/application/ports/news_collector.py.
 ```
 
 After that:
 
 ```text
-Implement the Article domain model as the first Phase 2 task.
+Create the ArticleRepository port in src/market_brief/application/ports/article_repository.py.
 ```
