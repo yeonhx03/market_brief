@@ -52,13 +52,13 @@ market_brief-workflow.md
 Current phase:
 
 ```text
-Application Ports
+RSS Collector
 ```
 
 Current focus:
 
 ```text
-Start the NewsCollector port in a focused task chat.
+Start Phase 4 by creating the SQLite ArticleRepository implementation.
 ```
 
 Current repository name:
@@ -177,7 +177,7 @@ domain model design
 
 ### Phase 2.5: Application Ports
 
-Status: In progress
+Status: Completed
 
 Goal:
 
@@ -190,6 +190,13 @@ src/market_brief/application/ports/news_collector.py
 src/market_brief/application/ports/article_repository.py
 ```
 
+Completed ports:
+
+```text
+NewsCollector
+ArticleRepository
+```
+
 Learning focus:
 
 ```text
@@ -199,13 +206,31 @@ repository contracts
 dependency inversion
 ```
 
+Decisions:
+
+- Keep `ArticleRepository` limited to `save_new`, `get_latest`, and `search` for the MVP.
+- Do not add delete or prune behavior until a storage retention policy is needed.
+
 ### Phase 3: RSS Collector
 
-Status: Not started
+Status: Completed
 
 Goal:
 
 Implement one async RSS collector.
+
+Target file:
+
+```text
+src/market_brief/infrastructure/collectors/rss_collector.py
+```
+
+Decision:
+
+```text
+RSSCollector is an Infrastructure Adapter.
+Place it under src/market_brief/infrastructure/collectors/.
+```
 
 Learning focus:
 
@@ -216,6 +241,12 @@ feedparser
 normalization
 error handling
 logging
+```
+
+Next:
+
+```text
+Add minimal error handling and logging after the SQLite repository is in place.
 ```
 
 ### Phase 4: SQLite Repository
@@ -453,6 +484,22 @@ Reason:
 The next learning step is to define the application's external contracts before implementing RSS collection.
 ```
 
+### 2026-07-27: RSS Collector Skeleton Verified
+
+Decision:
+
+```text
+Treat the first RSSCollector skeleton as complete for Phase 3.
+```
+
+Reason:
+
+```text
+The project now has a concrete infrastructure adapter that fetches RSS content asynchronously,
+parses entries with feedparser, skips entries without title or URL, and maps valid entries to Article.
+The collector was verified with a mocked RSS response that produced one valid Article and skipped one entry without a title.
+```
+
 ## 8. Open Questions
 
 Questions to resolve later:
@@ -482,11 +529,11 @@ Use short updates. This file should stay useful as a project map, not become a d
 Immediate next action:
 
 ```text
-Create the NewsCollector port in src/market_brief/application/ports/news_collector.py.
+Create the SQLite ArticleRepository implementation for Phase 4.
 ```
 
 After that:
 
 ```text
-Create the ArticleRepository port in src/market_brief/application/ports/article_repository.py.
+Start Phase 4 by creating the SQLite ArticleRepository implementation.
 ```
