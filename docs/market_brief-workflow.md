@@ -52,13 +52,13 @@ market_brief-workflow.md
 Current phase:
 
 ```text
-RSS Collector
+RSS Collector hardening after Phase 4 completion
 ```
 
 Current focus:
 
 ```text
-Start Phase 4 by creating the SQLite ArticleRepository implementation.
+Add the deferred minimal error handling and logging to RSSCollector before starting Phase 5 CLI.
 ```
 
 Current repository name:
@@ -251,7 +251,7 @@ Add minimal error handling and logging after the SQLite repository is in place.
 
 ### Phase 4: SQLite Repository
 
-Status: Not started
+Status: Completed
 
 Goal:
 
@@ -266,6 +266,17 @@ UNIQUE constraints
 INSERT OR IGNORE
 repository pattern
 ```
+
+Completed so far:
+
+- [x] Create the `articles` table on repository initialization.
+- [x] Map all current `Article` fields, including `source_article_id` and `canonical_url`.
+- [x] Store timezone-aware datetimes as UTC ISO 8601 text and restore them to `datetime`.
+- [x] Prevent exact duplicates with database-level `UNIQUE` constraints and `INSERT OR IGNORE`.
+- [x] Implement and verify `save_new`.
+- [x] Implement and verify latest-first retrieval with `get_latest` and `limit`.
+- [x] Implement and verify `search`.
+- [x] Add focused pytest coverage for duplicate prevention, latest retrieval, and keyword search.
 
 ### Phase 5: CLI
 
@@ -500,6 +511,24 @@ parses entries with feedparser, skips entries without title or URL, and maps val
 The collector was verified with a mocked RSS response that produced one valid Article and skipped one entry without a title.
 ```
 
+### 2026-08-11: SQLite Repository Completed
+
+Decision:
+
+```text
+Treat Phase 4 as complete. SQLiteArticleRepository now implements save_new, get_latest, and search,
+with table creation, exact duplicate prevention, datetime mapping, and row-to-Article restoration.
+```
+
+Reason:
+
+```text
+The repository created an articles table in a temporary SQLite database, saved a new Article,
+ignored the same Article on a second insert, restored a database row to an equal Article object,
+returned multiple articles in the expected latest-first order with a working limit, and searched
+title, raw content, and cleaned content while rejecting blank keywords. Three focused pytest tests pass.
+```
+
 ## 8. Open Questions
 
 Questions to resolve later:
@@ -529,11 +558,11 @@ Use short updates. This file should stay useful as a project map, not become a d
 Immediate next action:
 
 ```text
-Create the SQLite ArticleRepository implementation for Phase 4.
+Add minimal error handling and logging to RSSCollector as deferred after Phase 3.
 ```
 
 After that:
 
 ```text
-Start Phase 4 by creating the SQLite ArticleRepository implementation.
+Start Phase 5 by wiring the application service and bootstrap for the CLI.
 ```
