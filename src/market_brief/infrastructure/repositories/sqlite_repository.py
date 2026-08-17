@@ -1,3 +1,4 @@
+from dataclasses import replace
 import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
@@ -75,7 +76,14 @@ class SQLiteArticleRepository:
                 )
 
                 if cursor.rowcount == 1:
-                    saved_articles.append(article)
+                    article_id = cursor.lastrowid
+
+                    if article_id is None:
+                        raise RuntimeError("saved article must have an id")
+
+                    saved_articles.append(
+                        replace(article, id=article_id)
+                    )
 
             connection.commit()
         except Exception:
@@ -168,4 +176,5 @@ class SQLiteArticleRepository:
             content_hash=row["content_hash"],
             source_article_id=row["source_article_id"],
             canonical_url=row["canonical_url"],
+            id=row["id"],
         )

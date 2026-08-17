@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from market_brief.domain.models.article import Article
@@ -23,8 +24,14 @@ def test_save_new_prevents_duplicates(tmp_path):
     first_result = repository.save_new([article])
     second_result = repository.save_new([article])
 
-    assert first_result == [article]
+    assert len(first_result) == 1
+
+    saved_article = first_result[0]
+
+    assert saved_article.id == 1
+    assert replace(saved_article, id=None) == article
     assert second_result == []
+    assert repository.get_latest(1) == [saved_article]
 
 
 def test_get_latest_returns_articles_in_latest_first_order(tmp_path):
@@ -59,11 +66,13 @@ def test_get_latest_returns_articles_in_latest_first_order(tmp_path):
         canonical_url="https://example.com/articles/new",
     )
 
-    repository.save_new([old_article, new_article, middle_article])
+    _, saved_new, saved_middle = repository.save_new(
+        [old_article, new_article, middle_article]
+    )
 
     result = repository.get_latest(2)
 
-    assert result == [new_article, middle_article]
+    assert result == [saved_new, saved_middle]
 
 
 def test_search_keyword_with_apple(tmp_path):
@@ -114,7 +123,12 @@ def test_search_keyword_with_apple(tmp_path):
         canonical_url="https://example.com/articles/oil-prices",
     )
 
-    repository.save_new(
+    (
+        saved_title_article,
+        saved_raw_content_article,
+        saved_cleaned_content_article,
+        _,
+    ) = repository.save_new(
         [
             article_with_apple_in_title,
             article_with_apple_in_raw_content,
@@ -126,9 +140,9 @@ def test_search_keyword_with_apple(tmp_path):
     result = repository.search("Apple")
 
     assert result == [
-        article_with_apple_in_title,
-        article_with_apple_in_raw_content,
-        article_with_apple_in_cleaned_content,
+        saved_title_article,
+        saved_raw_content_article,
+        saved_cleaned_content_article,
     ]
 
     assert repository.search("   ") == []
