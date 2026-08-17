@@ -3,6 +3,7 @@ import asyncio
 
 from market_brief.bootstrap import build_collect_news_service
 from market_brief.bootstrap import build_get_latest_articles_service
+from market_brief.bootstrap import build_generate_briefing_service
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -35,6 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/market_brief.db",
         help="SQLite database path.",
     )
+
     latest_parser = subparsers.add_parser(
         "latest",
         help="Show the latest saved articles.",
@@ -46,6 +48,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum number of articles to show.",
     )
     latest_parser.add_argument(
+        "--db-path",
+        default="data/market_brief.db",
+        help="SQLite database path.",
+    )
+
+    briefing_parser = subparsers.add_parser(
+    "briefing",
+    help="Generate a briefing from the latest saved articles.",
+    )
+    briefing_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of articles to include.",
+    )
+    briefing_parser.add_argument(
         "--db-path",
         default="data/market_brief.db",
         help="SQLite database path.",
@@ -83,6 +101,25 @@ def run_latest(args: argparse.Namespace) -> None:
         print(f"   {article.url}")
 
 
+def run_briefing(args: argparse.Namespace) -> None:
+    service = build_generate_briefing_service(
+        db_path=args.db_path,
+    )
+    briefing = service.execute(limit=args.limit)
+
+    if not briefing.items:
+        print("No articles found.")
+        return
+
+    for index, item in enumerate(briefing.items, start=1):
+        print(f"{index}. {item.title}")
+        print(
+            f"   {item.source} | "
+            f"{item.timestamp_label}: {item.timestamp.isoformat()}"
+        )
+        print(f"   {item.url}")
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -91,3 +128,5 @@ def main() -> None:
         run_collect(args)
     elif args.command == "latest":
         run_latest(args)
+    elif args.command == "briefing":
+        run_briefing(args)

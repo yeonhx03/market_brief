@@ -4,6 +4,9 @@ from market_brief.application.services.collect_news import CollectNewsService
 from market_brief.application.services.get_latest_articles import (
     GetLatestArticlesService,
     )
+from market_brief.application.services.generate_briefing import (
+    GenerateBriefingService,
+)
 from market_brief.infrastructure.collectors.rss_collector import RSSCollector
 from market_brief.infrastructure.repositories.sqlite_repository import (
     SQLiteArticleRepository,
@@ -32,3 +35,11 @@ def build_get_latest_articles_service(
     repository = SQLiteArticleRepository(db_path=db_path)
 
     return GetLatestArticlesService(repository=repository)
+
+
+def build_generate_briefing_service(
+        db_path: str | Path,
+) -> GenerateBriefingService:
+    repository = SQLiteArticleRepository(db_path=db_path)
+
+    return GenerateBriefingService(repository=repository)
