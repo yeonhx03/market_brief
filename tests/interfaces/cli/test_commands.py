@@ -1,7 +1,10 @@
 import argparse
+import sys
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from market_brief.domain.models.article import Article
+from market_brief.domain.models.briefing import Briefing, BriefingItem
 from market_brief.interfaces.cli import commands
 
 
@@ -25,6 +28,16 @@ class FakeGetLatestArticlesService:
     def execute(self, limit: int) -> list[Article]:
         self.requested_limit = limit
         return self.articles
+
+
+class FakeGenerateBriefingService:
+    def __init__(self, briefing: Briefing) -> None:
+        self.briefing = briefing
+        self.requested_limit: int | None = None
+
+    def execute(self, limit: int) -> Briefing:
+        self.requested_limit = limit
+        return self.briefing
 
 
 def test_run_collect_builds_service_and_prints_saved_count(
@@ -112,4 +125,64 @@ def test_run_latest_builds_service_and_prints_articles(
         "1. Latest article\n"
         "   Test Source | 2026-08-14T09:00:00+00:00\n"
         "   https://example.com/latest\n"
+    )
+
+
+def test_main_builds_briefing_service_and_prints_items(
+    monkeypatch,
+    capsys,
+):
+    briefing = Briefing(
+        items=(
+            BriefingItem(
+                title="Market update",
+                source="Test Source",
+                url="https://example.com/market-update",
+                timestamp=datetime(
+                    2026,
+                    8,
+                    17,
+                    18,
+                    0,
+                    tzinfo=ZoneInfo("Asia/Seoul"),
+                ),
+                timestamp_label="Published",
+            ),
+        )
+    )
+    fake_service = FakeGenerateBriefingService(briefing)
+    factory_arguments = {}
+
+    def fake_build_generate_briefing_service(db_path):
+        factory_arguments["db_path"] = db_path
+        return fake_service
+
+    monkeypatch.setattr(
+        commands,
+        "build_generate_briefing_service",
+        fake_build_generate_briefing_service,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "market_brief",
+            "briefing",
+            "--limit",
+            "3",
+            "--db-path",
+            "test.db",
+        ],
+    )
+
+    commands.main()
+
+    assert factory_arguments == {
+        "db_path": "test.db",
+    }
+    assert fake_service.requested_limit == 3
+    assert capsys.readouterr().out == (
+        "1. Market update\n"
+        "   Test Source | Published: 2026-08-17T18:00:00+09:00\n"
+        "   https://example.com/market-update\n"
     )
