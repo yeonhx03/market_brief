@@ -69,12 +69,6 @@ class FinBERTAnalyzer:
             key=lambda label: scores[label],
         )
 
-
-        text_sentiment = max(
-            ("positive", "neutral", "negative"),
-            key=lambda label: scores[label],
-        )
-
         # 확률 합 검증
         if not isclose(
             sum(scores.values()),
