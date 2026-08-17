@@ -1,7 +1,7 @@
 [project]
 name = "market_brief"
 version = "0.1.0"
-description = "Add your description here"
+description = "A CLI application for collecting market news and generating personalized briefings"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
