@@ -5,7 +5,8 @@ RSS 금융 뉴스를 수집해 SQLite에 저장하고, 감성 분석과 개인�
 ## 프로젝트 소개
 
 `market_brief`는 자동매매 프로그램에서 뉴스 수집과 분석을 분리하기 위해 시작했습니다.
-이 프로젝트는 뉴스 데이터를 수집하고 분석 결과를 저장하는 역할로, 이후 자동매매 프로그램이 필요할 때 해당 데이터를 가져가도록 만드는 것이 목표입니다.
+Python은 뉴스 수집, FinBERT 분석, 브리핑 생성을 담당하고, 이후 별도 Spring Boot API와
+PostgreSQL을 통해 macOS/iOS 앱 및 다른 프로그램에 결과를 제공하는 것이 목표입니다.
 
 ## 현재 구현 상태
 
@@ -19,6 +20,10 @@ RSS 금융 뉴스를 수집해 SQLite에 저장하고, 감성 분석과 개인�
 | FinBERT 분석 어댑터 | 부분 구현 | 분류 결과의 변환과 검증은 구현했지만 실제 모델은 아직 연결하지 않았습니다. |
 | 관심 종목 기반 브리핑 | 예정 | 종목 및 산업 분야 설정과 관련 기사 필터링이 필요합니다. |
 | LLM 기사 요약 | 예정 | 핵심 수집·분석 흐름이 완성된 후 추가할 계획입니다. |
+
+현재 집중 단계는 Windows x86-64 환경에서 실제 `ProsusAI/finbert` 런타임을 연결하고,
+기사 단위 분석과 감성 브리핑을 검증하는 작업입니다. 이 작업이 끝나면 개발 환경은 바로
+Intel Mac으로 돌아가 Spring Boot, PostgreSQL, Swift 개발을 진행합니다.
 
 현재 `briefing` 명령은 AI로 기사를 요약하지 않습니다. 저장된 최신 기사를 서울 시간 기준으로 정리하는 결정론적 브리핑입니다.
 
@@ -114,6 +119,24 @@ Persisted Article
     -> SQLiteArticleAnalysisRepository
 ```
 
+장기 통합 구조는 다음과 같습니다.
+
+```text
+Python market_brief
+  -> RSS collection
+  -> FinBERT inference
+  -> briefing generation
+  -> HTTP/JSON
+Spring Boot market_brief_api
+  -> validation / duplicate handling / REST API
+  -> PostgreSQL
+  -> macOS/iOS Swift clients
+```
+
+SQLite는 로컬·오프라인 어댑터로 유지합니다. 통합 실행에서는 Python이 PostgreSQL에 직접
+접속하지 않고 Spring Boot API를 사용하며 SQLite와 PostgreSQL에 암묵적으로 동시에 쓰지
+않습니다.
+
 ## 프로젝트 구조
 
 ```text
@@ -143,8 +166,16 @@ src/market_brief/
 
 1. 실제 사전 학습 FinBERT 모델 연결
 2. 저장된 기사를 분석하는 `analyze` CLI 명령 추가
-3. 기사별 감성 결과를 종목과 기간 단위로 집계
-4. 관심 종목과 산업 분야 설정 기능 추가
-5. 동명이의어를 구분하는 기업·산업 관련성 판별
-6. LLM 기반 기사 요약 추가
-7. 자동매매 프로그램에서 분석 데이터를 조회할 수 있는 인터페이스 제공
+3. 실제 분석 결과 기반 감성 브리핑 구현
+4. Spring Boot REST API와 PostgreSQL 구현
+5. Python HTTP Repository 연결
+6. Linux 서버 배포와 정기 실행
+7. macOS/iOS SwiftUI 앱 구현
+8. 관심 종목, 엔티티 구분, LLM 요약, NewsImpact 확장
+
+## 프로젝트 문서
+
+- [`AGENTS.md`](AGENTS.md): Codex와 작업할 때 지켜야 할 저장소 규칙
+- [`docs/architecture.md`](docs/architecture.md): 시스템 책임과 장기 아키텍처
+- [`docs/workflow.md`](docs/workflow.md): 현재 단계, 완료 상태, 다음 작업
+- [`docs/windows-handoff.md`](docs/windows-handoff.md): 임시 Windows FinBERT 작업 인계서
