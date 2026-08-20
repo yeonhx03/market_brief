@@ -135,6 +135,16 @@ def test_get_by_article_id_returns_empty_then_newest_first(tmp_path):
         saved_old,
     ]
 
+def test_creates_missing_parent_directory(tmp_path):
+    db_path = tmp_path / "nested" / "data" / "test.db"
+
+    assert not db_path.parent.exists()
+
+    SQLiteArticleAnalysisRepository(db_path)
+
+    assert db_path.parent.is_dir()
+    assert db_path.is_file()
+
 
 def test_save_rejects_unknown_article_id(tmp_path):
     db_path = tmp_path / "test.db"

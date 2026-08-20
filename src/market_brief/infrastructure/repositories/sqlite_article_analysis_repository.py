@@ -8,7 +8,8 @@ from market_brief.domain.models.article_analysis import ArticleAnalysis
 
 class SQLiteArticleAnalysisRepository:
     def __init__(self, db_path: str | Path) -> None:
-        self.db_path = db_path
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._create_table()
 
     def _connect(self) -> sqlite3.Connection:

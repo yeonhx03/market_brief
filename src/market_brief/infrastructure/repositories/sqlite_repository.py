@@ -8,7 +8,8 @@ from market_brief.domain.models.article import Article
 
 class SQLiteArticleRepository:
     def __init__(self, db_path: str | Path) -> None:
-        self.db_path = db_path
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._create_table()
 
     def _create_table(self) -> None:

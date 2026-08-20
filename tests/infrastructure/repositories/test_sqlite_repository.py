@@ -7,6 +7,17 @@ from market_brief.infrastructure.repositories.sqlite_repository import (
 )
 
 
+def test_creates_missing_parent_directory(tmp_path):
+    db_path = tmp_path / "nested" / "data" / "test.db"
+
+    assert not db_path.parent.exists()
+
+    SQLiteArticleRepository(db_path)
+
+    assert db_path.parent.is_dir()
+    assert db_path.is_file()
+
+
 def test_save_new_prevents_duplicates(tmp_path):
     db_path = tmp_path / "test.db"
     repository = SQLiteArticleRepository(db_path)
