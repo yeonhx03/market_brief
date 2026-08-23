@@ -89,6 +89,22 @@ The first `--locked` sync verifies that the committed lock file is portable with
 rewriting it. Update `pyproject.toml` and `uv.lock` deliberately only when adding the optional
 FinBERT dependencies.
 
+### Current Windows Workstation
+
+- project path: `D:\Projects\market_brief`
+- working branch: `feat/finbert-integration`
+- operating system: Windows 10 Home, build `19045.7663`
+- CPU: Intel Core i7-10700K
+- RAM: 16 GB
+- GPU: NVIDIA GeForce RTX 2070 SUPER, 8 GB VRAM
+- storage rule: keep the repository and Hugging Face model cache on the D drive because the C
+  drive has insufficient free space
+
+The first end-to-end inference and benchmark still use CPU so the minimum runtime path is explicit
+and later Linux server sizing is not based on an available local GPU. After that path passes, the
+RTX 2070 SUPER may be tested separately as an optional comparison. CUDA support must not become a
+requirement for collection, deterministic briefing, or normal tests.
+
 Before adding model dependencies, record:
 
 - Windows edition and architecture
