@@ -60,6 +60,49 @@ def test_analyze_maps_controlled_response_to_article_analysis():
     )
 
 
+def test_analyze_passes_headline_only_to_classifier():
+    received_texts: list[str] = []
+
+    def fake_classifier(
+        text: str,
+    ) -> list[dict[str, str | float]]:
+        received_texts.append(text)
+        return [
+            {"label": "positive", "score": 0.7},
+            {"label": "neutral", "score": 0.2},
+            {"label": "negative", "score": 0.1},
+        ]
+
+    analyzed_at = datetime(
+        2026,
+        8,
+        17,
+        6,
+        0,
+        tzinfo=timezone.utc,
+    )
+    analyzer = FinBERTAnalyzer(
+        classifier=fake_classifier,
+        analyzer_name="controlled-finbert",
+        analyzer_version="test-v1",
+        clock=lambda: analyzed_at,
+    )
+    article = Article(
+        id=42,
+        title="Company reports strong earnings",
+        url="https://example.com/article",
+        source="Test",
+        published_at=analyzed_at,
+        collected_at=analyzed_at,
+        raw_content="Revenue and profit increased.",
+        cleaned_content="Cleaned article body.",
+    )
+
+    analyzer.analyze(article)
+
+    assert received_texts == [article.title]
+
+
 def test_analyze_rejects_article_without_id():
     def fake_classifier(
         text: str,

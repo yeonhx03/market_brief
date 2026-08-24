@@ -28,13 +28,7 @@ class FinBERTAnalyzer:
         if article.id is None:
             raise ValueError("article must be persisted before analysis")
 
-        content = article.cleaned_content or article.raw_content
-        text = article.title
-
-        if content:
-            text = f"{article.title}\n\n{content}"
-
-        response = self.classifier(text)
+        response = self.classifier(article.title)
 
         scores = {
             str(item["label"]).lower(): float(item["score"])
