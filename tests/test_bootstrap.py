@@ -9,6 +9,11 @@ from market_brief.application.services.generate_sentiment_briefing import (
 from market_brief.bootstrap import (
     build_analyze_article_service,
     build_generate_sentiment_briefing_service,
+    build_http_analyze_article_service,
+    build_http_briefing_repository,
+    build_http_collect_news_service,
+    build_http_generate_sentiment_briefing_service,
+    build_http_get_latest_articles_service,
 )
 from market_brief.infrastructure.analyzers.finbert_analyzer import (
     FinBERTAnalyzer,
@@ -23,6 +28,18 @@ from market_brief.infrastructure.repositories.sqlite_article_analysis_repository
 )
 from market_brief.infrastructure.repositories.sqlite_repository import (
     SQLiteArticleRepository,
+)
+from market_brief.infrastructure.repositories.http_article_repository import (
+    HttpArticleRepository,
+)
+from market_brief.infrastructure.repositories.http_article_analysis_repository import (
+    HttpArticleAnalysisRepository,
+)
+from market_brief.infrastructure.repositories.http_briefing_repository import (
+    HttpBriefingRepository,
+)
+from market_brief.infrastructure.repositories.http_auth import (
+    WRITE_API_KEY_HEADER,
 )
 
 
@@ -86,3 +103,91 @@ def test_build_generate_sentiment_briefing_service_wires_repositories_only(
     assert service.analysis_type == "text_sentiment"
     assert service.analyzer_name == DEFAULT_MODEL_NAME
     assert service.analyzer_version == DEFAULT_MODEL_REVISION
+
+
+def test_build_http_latest_service_selects_only_http_repository(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("WRITE_API_KEY", "test-secret")
+    db_path = tmp_path / "must-not-exist.db"
+
+    service = build_http_get_latest_articles_service("http://api.test/")
+
+    assert isinstance(service.repository, HttpArticleRepository)
+    assert service.repository.base_url == "http://api.test"
+    assert service.repository.write_headers == {
+        WRITE_API_KEY_HEADER: "test-secret"
+    }
+    assert not db_path.exists()
+    service.repository.client.close()
+
+
+def test_build_http_sentiment_briefing_wires_both_http_repositories(
+    monkeypatch,
+):
+    monkeypatch.setenv("WRITE_API_KEY", "test-secret")
+    service = build_http_generate_sentiment_briefing_service(
+        "http://api.test"
+    )
+
+    assert isinstance(service.article_repository, HttpArticleRepository)
+    assert isinstance(
+        service.analysis_repository,
+        HttpArticleAnalysisRepository,
+    )
+    assert service.article_repository.base_url == "http://api.test"
+    assert service.analysis_repository.base_url == "http://api.test"
+    assert service.article_repository.write_headers == {
+        WRITE_API_KEY_HEADER: "test-secret"
+    }
+    assert service.analysis_repository.write_headers == {
+        WRITE_API_KEY_HEADER: "test-secret"
+    }
+    service.article_repository.client.close()
+    service.analysis_repository.client.close()
+
+
+def test_build_http_briefing_repository_uses_normalized_api_url(monkeypatch):
+    monkeypatch.setenv("WRITE_API_KEY", "test-secret")
+    repository = build_http_briefing_repository("http://api.test/")
+
+    assert isinstance(repository, HttpBriefingRepository)
+    assert repository.base_url == "http://api.test"
+    assert repository.write_headers == {
+        WRITE_API_KEY_HEADER: "test-secret"
+    }
+    repository.client.close()
+
+
+def test_build_http_collect_service_propagates_write_api_key(monkeypatch):
+    monkeypatch.setenv("WRITE_API_KEY", "test-secret")
+
+    service = build_http_collect_news_service(
+        feed_url="https://example.com/feed.xml",
+        source="Example News",
+        api_url="http://api.test",
+    )
+
+    assert service.repository.write_headers == {
+        WRITE_API_KEY_HEADER: "test-secret"
+    }
+    service.repository.client.close()
+
+
+def test_build_http_analyze_service_propagates_write_api_key(
+    monkeypatch,
+):
+    monkeypatch.setenv("WRITE_API_KEY", "test-secret")
+    monkeypatch.setattr(
+        TransformersFinBERTClassifier,
+        "from_pretrained",
+        classmethod(lambda cls: lambda text: None),
+    )
+
+    service = build_http_analyze_article_service("http://api.test")
+
+    assert service.repository.write_headers == {
+        WRITE_API_KEY_HEADER: "test-secret"
+    }
+    service.repository.client.close()

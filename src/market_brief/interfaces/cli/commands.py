@@ -7,6 +7,14 @@ from market_brief.bootstrap import build_collect_news_service
 from market_brief.bootstrap import build_analyze_article_service
 from market_brief.bootstrap import build_get_latest_articles_service
 from market_brief.bootstrap import build_generate_briefing_service
+from market_brief.bootstrap import build_http_analyze_article_service
+from market_brief.bootstrap import build_http_collect_news_service
+from market_brief.bootstrap import build_http_generate_briefing_service
+from market_brief.bootstrap import (
+    build_http_generate_sentiment_briefing_service,
+)
+from market_brief.bootstrap import build_http_get_latest_articles_service
+from market_brief.bootstrap import build_http_briefing_repository
 
 from market_brief.interfaces.sentiment_briefing_json import (
     serialize_sentiment_briefing,
@@ -43,6 +51,10 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/market_brief.db",
         help="SQLite database path.",
     )
+    collect_parser.add_argument(
+        "--api-url",
+        help="Spring API base URL; selects HTTP persistence mode.",
+    )
 
     latest_parser = subparsers.add_parser(
         "latest",
@@ -58,6 +70,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--db-path",
         default="data/market_brief.db",
         help="SQLite database path.",
+    )
+    latest_parser.add_argument(
+        "--api-url",
+        help="Spring API base URL; selects HTTP persistence mode.",
     )
 
     briefing_parser = subparsers.add_parser(
@@ -75,6 +91,10 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/market_brief.db",
         help="SQLite database path.",
     )
+    briefing_parser.add_argument(
+        "--api-url",
+        help="Spring API base URL; selects HTTP persistence mode.",
+    )
 
     sentiment_briefing_parser = subparsers.add_parser(
         "sentiment-briefing",
@@ -90,6 +110,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--db-path",
         default="data/market_brief.db",
         help="SQLite database path.",
+    )
+    sentiment_briefing_parser.add_argument(
+        "--api-url",
+        help="Spring API base URL; selects HTTP persistence mode.",
     )
     sentiment_briefing_parser.add_argument(
         "--format",
@@ -112,15 +136,26 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/market_brief.db",
         help="SQLite database path.",
     )
+    analyze_parser.add_argument(
+        "--api-url",
+        help="Spring API base URL; selects HTTP persistence mode.",
+    )
     return parser
 
 
 def run_collect(args: argparse.Namespace) -> None:
-    service = build_collect_news_service(
-        feed_url=args.feed_url,
-        source=args.source,
-        db_path=args.db_path,
-    )
+    if getattr(args, "api_url", None):
+        service = build_http_collect_news_service(
+            feed_url=args.feed_url,
+            source=args.source,
+            api_url=args.api_url,
+        )
+    else:
+        service = build_collect_news_service(
+            feed_url=args.feed_url,
+            source=args.source,
+            db_path=args.db_path,
+        )
 
     saved_articles = asyncio.run(service.execute())
 
@@ -128,9 +163,14 @@ def run_collect(args: argparse.Namespace) -> None:
 
 
 def run_latest(args: argparse.Namespace) -> None:
-    service = build_get_latest_articles_service(
-        db_path=args.db_path,
-    )
+    if getattr(args, "api_url", None):
+        service = build_http_get_latest_articles_service(
+            api_url=args.api_url
+        )
+    else:
+        service = build_get_latest_articles_service(
+            db_path=args.db_path,
+        )
     articles = service.execute(limit=args.limit)
 
     if not articles:
@@ -146,9 +186,14 @@ def run_latest(args: argparse.Namespace) -> None:
 
 
 def run_briefing(args: argparse.Namespace) -> None:
-    service = build_generate_briefing_service(
-        db_path=args.db_path,
-    )
+    if getattr(args, "api_url", None):
+        service = build_http_generate_briefing_service(
+            api_url=args.api_url
+        )
+    else:
+        service = build_generate_briefing_service(
+            db_path=args.db_path,
+        )
     briefing = service.execute(limit=args.limit)
 
     if not briefing.items:
@@ -165,10 +210,22 @@ def run_briefing(args: argparse.Namespace) -> None:
 
 
 def run_sentiment_briefing(args: argparse.Namespace) -> None:
-    service = build_generate_sentiment_briefing_service(
-        db_path=args.db_path,
-    )
+    if getattr(args, "api_url", None):
+        service = build_http_generate_sentiment_briefing_service(
+            api_url=args.api_url
+        )
+        briefing_repository = build_http_briefing_repository(
+            api_url=args.api_url
+        )
+    else:
+        service = build_generate_sentiment_briefing_service(
+            db_path=args.db_path,
+        )
+        briefing_repository = None
     briefing = service.execute(limit=args.limit)
+
+    if briefing_repository is not None:
+        briefing_repository.save(briefing)
 
     if args.format == "json":
         print(serialize_sentiment_briefing(briefing))
@@ -216,18 +273,28 @@ def run_sentiment_briefing(args: argparse.Namespace) -> None:
 
 
 def run_analyze(args: argparse.Namespace) -> None:
-    article_service = build_get_latest_articles_service(
-        db_path=args.db_path,
-    )
+    if getattr(args, "api_url", None):
+        article_service = build_http_get_latest_articles_service(
+            api_url=args.api_url
+        )
+    else:
+        article_service = build_get_latest_articles_service(
+            db_path=args.db_path,
+        )
     articles = article_service.execute(limit=args.limit)
 
     if not articles:
         print("No articles found.")
         return
 
-    analysis_service = build_analyze_article_service(
-        db_path=args.db_path,
-    )
+    if getattr(args, "api_url", None):
+        analysis_service = build_http_analyze_article_service(
+            api_url=args.api_url
+        )
+    else:
+        analysis_service = build_analyze_article_service(
+            db_path=args.db_path,
+        )
 
     analyzed_count = 0
     skipped_count = 0

@@ -1,5 +1,6 @@
-from pathlib import Path
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from market_brief.application.services.collect_news import CollectNewsService
 from market_brief.application.services.get_latest_articles import (
@@ -29,6 +30,15 @@ from market_brief.infrastructure.analyzers.transformers_finbert_classifier impor
 )
 from market_brief.infrastructure.repositories.sqlite_article_analysis_repository import (
     SQLiteArticleAnalysisRepository,
+)
+from market_brief.infrastructure.repositories.http_article_repository import (
+    HttpArticleRepository,
+)
+from market_brief.infrastructure.repositories.http_article_analysis_repository import (
+    HttpArticleAnalysisRepository,
+)
+from market_brief.infrastructure.repositories.http_briefing_repository import (
+    HttpBriefingRepository,
 )
 
 def build_collect_news_service(
@@ -96,3 +106,94 @@ def build_analyze_article_service(
         analyzer=analyzer,
         repository=repository,
     )
+
+
+def build_http_collect_news_service(
+    feed_url: str,
+    source: str,
+    api_url: str,
+) -> CollectNewsService:
+    collector = RSSCollector(feed_url=feed_url, source=source)
+    repository = HttpArticleRepository(
+        base_url=api_url,
+        api_key=_write_api_key(),
+    )
+
+    return CollectNewsService(
+        collector=collector,
+        repository=repository,
+    )
+
+
+def build_http_get_latest_articles_service(
+    api_url: str,
+) -> GetLatestArticlesService:
+    return GetLatestArticlesService(
+        repository=HttpArticleRepository(
+            base_url=api_url,
+            api_key=_write_api_key(),
+        )
+    )
+
+
+def build_http_generate_briefing_service(
+    api_url: str,
+) -> GenerateBriefingService:
+    return GenerateBriefingService(
+        repository=HttpArticleRepository(
+            base_url=api_url,
+            api_key=_write_api_key(),
+        )
+    )
+
+
+def build_http_generate_sentiment_briefing_service(
+    api_url: str,
+) -> GenerateSentimentBriefingService:
+    return GenerateSentimentBriefingService(
+        article_repository=HttpArticleRepository(
+            base_url=api_url,
+            api_key=_write_api_key(),
+        ),
+        analysis_repository=HttpArticleAnalysisRepository(
+            base_url=api_url,
+            api_key=_write_api_key(),
+        ),
+        analysis_type="text_sentiment",
+        analyzer_name=DEFAULT_MODEL_NAME,
+        analyzer_version=DEFAULT_MODEL_REVISION,
+    )
+
+
+def build_http_briefing_repository(
+    api_url: str,
+) -> HttpBriefingRepository:
+    return HttpBriefingRepository(
+        base_url=api_url,
+        api_key=_write_api_key(),
+    )
+
+
+def build_http_analyze_article_service(
+    api_url: str,
+) -> AnalyzeArticleService:
+    classifier = TransformersFinBERTClassifier.from_pretrained()
+    analyzer = FinBERTAnalyzer(
+        classifier=classifier,
+        analyzer_name=DEFAULT_MODEL_NAME,
+        analyzer_version=DEFAULT_MODEL_REVISION,
+        clock=lambda: datetime.now(timezone.utc),
+    )
+
+    return AnalyzeArticleService(
+        analyzer=analyzer,
+        repository=HttpArticleAnalysisRepository(
+            base_url=api_url,
+            api_key=_write_api_key(),
+        ),
+    )
+
+
+def _write_api_key() -> str | None:
+    value = os.environ.get("WRITE_API_KEY")
+    return None if value is None or value.isspace() else value

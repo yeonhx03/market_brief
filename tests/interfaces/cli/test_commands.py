@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -53,6 +54,15 @@ class FakeGenerateSentimentBriefingService:
     def execute(self, limit: int) -> SentimentBriefing:
         self.requested_limit = limit
         return self.briefing
+
+
+class FakeBriefingRepository:
+    def __init__(self) -> None:
+        self.saved_briefings: list[SentimentBriefing] = []
+
+    def save(self, briefing: SentimentBriefing) -> int:
+        self.saved_briefings.append(briefing)
+        return 31
 
 
 class FakeAnalyzeArticleService:
@@ -571,3 +581,116 @@ def test_main_dispatches_sentiment_briefing_command(monkeypatch):
     assert received_args[0].limit == 4
     assert received_args[0].db_path == "test.db"
     assert received_args[0].format == "text"
+
+
+def test_parser_accepts_http_persistence_mode():
+    args = commands.build_parser().parse_args(
+        [
+            "latest",
+            "--limit",
+            "3",
+            "--api-url",
+            "http://localhost:8080",
+        ]
+    )
+
+    assert args.command == "latest"
+    assert args.limit == 3
+    assert args.api_url == "http://localhost:8080"
+
+
+def test_run_latest_selects_http_builder_without_sqlite(
+    monkeypatch,
+    capsys,
+):
+    fake_service = FakeGetLatestArticlesService([])
+    received_api_urls: list[str] = []
+
+    def fake_http_builder(api_url):
+        received_api_urls.append(api_url)
+        return fake_service
+
+    monkeypatch.setattr(
+        commands,
+        "build_http_get_latest_articles_service",
+        fake_http_builder,
+    )
+    monkeypatch.setattr(
+        commands,
+        "build_get_latest_articles_service",
+        lambda db_path: (_ for _ in ()).throw(
+            AssertionError("HTTP mode must not build SQLite")
+        ),
+    )
+
+    commands.run_latest(
+        argparse.Namespace(
+            command="latest",
+            limit=3,
+            db_path="unused.db",
+            api_url="http://localhost:8080",
+        )
+    )
+
+    assert received_api_urls == ["http://localhost:8080"]
+    assert capsys.readouterr().out == "No articles found.\n"
+
+
+def test_run_http_sentiment_briefing_persists_and_keeps_json_output(
+    monkeypatch,
+    capsys,
+):
+    briefing = SentimentBriefing(
+        analysis_type="text_sentiment",
+        analyzer_name="ProsusAI/finbert",
+        analyzer_version="revision-v1",
+        items=(),
+    )
+    fake_service = FakeGenerateSentimentBriefingService(briefing)
+    fake_repository = FakeBriefingRepository()
+    service_api_urls: list[str] = []
+    repository_api_urls: list[str] = []
+
+    def fake_service_builder(api_url):
+        service_api_urls.append(api_url)
+        return fake_service
+
+    def fake_repository_builder(api_url):
+        repository_api_urls.append(api_url)
+        return fake_repository
+
+    monkeypatch.setattr(
+        commands,
+        "build_http_generate_sentiment_briefing_service",
+        fake_service_builder,
+    )
+    monkeypatch.setattr(
+        commands,
+        "build_http_briefing_repository",
+        fake_repository_builder,
+    )
+    monkeypatch.setattr(
+        commands,
+        "build_generate_sentiment_briefing_service",
+        lambda db_path: (_ for _ in ()).throw(
+            AssertionError("HTTP mode must not build SQLite")
+        ),
+    )
+
+    commands.run_sentiment_briefing(
+        argparse.Namespace(
+            command="sentiment-briefing",
+            limit=3,
+            db_path="unused.db",
+            api_url="http://localhost:8080",
+            format="json",
+        )
+    )
+
+    assert service_api_urls == ["http://localhost:8080"]
+    assert repository_api_urls == ["http://localhost:8080"]
+    assert fake_service.requested_limit == 3
+    assert fake_repository.saved_briefings == [briefing]
+    output = json.loads(capsys.readouterr().out)
+    assert output["briefingType"] == "text_sentiment"
+    assert output["items"] == []
