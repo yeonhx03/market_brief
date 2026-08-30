@@ -198,12 +198,21 @@ result or Phase 8A correctness.
 
 ### Sentiment briefing
 
-- Keep the existing deterministic briefing unchanged.
-- Add a separate sentiment-aware contract and application service.
-- Use stored results rather than invoking FinBERT during formatting.
-- Handle articles without analysis explicitly.
-- Produce deterministic text and a persistence-ready JSON representation.
-- Do not call the result expected stock movement or a trading signal.
+Phase 8B sentiment briefing implementation and verification completed on August 30, 2026.
+
+- The existing deterministic `briefing` command remains unchanged.
+- Separate `SentimentBriefing` models and `GenerateSentimentBriefingService` read stored results.
+- The selected analysis must match the analysis type, analyzer name, and pinned model revision.
+- Articles without the selected analysis are reported explicitly instead of being treated as neutral.
+- Text and persistence-ready JSON outputs are deterministic for the same stored data.
+- JSON retains original probabilities and omits a live generation timestamp.
+- The briefing path does not construct FinBERT or load PyTorch and Transformers.
+- Output describes headline-language sentiment, not expected stock movement or a trading signal.
+
+The real 52-article BBC benchmark database produced 50 analyzed items and 2 missing items. The
+selected labels were 5 positive, 34 neutral, and 11 negative. Repeated text and JSON runs were
+byte-for-byte identical, and the database remained at 52 article rows and 50 analysis rows. The
+full suite passed with 59 tests and Ruff reported no errors.
 
 ## Windows Completion Gate
 
@@ -219,9 +228,9 @@ Do not return to the Mac until:
 - the working tree contains only intentional changes
 - commits are pushed and visible on GitHub
 
-Article-level Phase 8A requirements, benchmarks, the full 42-test suite, and Ruff have passed.
-The remaining Windows work is Phase 8B sentiment briefing, followed by final test, commit, push,
-and remote verification. GPU comparison is optional and is not required to complete the handoff.
+Phase 8A and Phase 8B requirements, real BBC verification, the full 59-test suite, and Ruff have
+passed. The remaining Windows handoff step is to push the Phase 8B commit and verify it on the
+remote branch. GPU comparison is optional and is not required to complete the handoff.
 
 ## Returning To The Intel Mac
 

@@ -11,6 +11,10 @@ from market_brief.application.services.analyze_article import (
 from market_brief.application.services.generate_briefing import (
     GenerateBriefingService,
 )
+from market_brief.application.services.generate_sentiment_briefing import (
+    GenerateSentimentBriefingService,
+)
+
 from market_brief.infrastructure.collectors.rss_collector import RSSCollector
 from market_brief.infrastructure.repositories.sqlite_repository import (
     SQLiteArticleRepository,
@@ -57,6 +61,21 @@ def build_generate_briefing_service(
     repository = SQLiteArticleRepository(db_path=db_path)
 
     return GenerateBriefingService(repository=repository)
+
+
+def build_generate_sentiment_briefing_service(
+    db_path: str | Path,
+) -> GenerateSentimentBriefingService:
+    article_repository = SQLiteArticleRepository(db_path=db_path)
+    analysis_repository = SQLiteArticleAnalysisRepository(db_path=db_path)
+
+    return GenerateSentimentBriefingService(
+        article_repository=article_repository,
+        analysis_repository=analysis_repository,
+        analysis_type="text_sentiment",
+        analyzer_name=DEFAULT_MODEL_NAME,
+        analyzer_version=DEFAULT_MODEL_REVISION,
+    )
 
 
 def build_analyze_article_service(

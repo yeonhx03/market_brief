@@ -5,7 +5,7 @@
 Current phase:
 
 ```text
-Phase 8A technical verification complete; Phase 8B sentiment briefing next
+Phase 8B implementation verified; push and remote verification next
 ```
 
 Completed:
@@ -17,7 +17,7 @@ Completed:
 - `collect` and `latest` CLI commands
 - deterministic `Briefing` and `briefing` CLI command
 - optional persisted `Article.id`
-- strict `ArticleAnalysis` domain model
+- `ArticleAnalysis` domain model
 - SQLite analysis persistence and foreign-key verification
 - `TextSentimentAnalyzer` and `ArticleAnalysisRepository` ports
 - controlled `FinBERTAnalyzer` mapping and validation
@@ -34,10 +34,19 @@ Completed:
 - real BBC article persistence and 1/10/50-article CPU benchmarks
 - non-analysis CLI verification without loading PyTorch or Transformers
 - 42 passing tests and Ruff check after the Phase 8A implementation
+- separate `SentimentBriefing` and `SentimentBriefingItem` domain contract
+- stored-analysis-only `GenerateSentimentBriefingService`
+- exact analysis selection by type, analyzer name, and pinned revision
+- explicit missing-analysis handling
+- deterministic `sentiment-briefing` text output
+- persistence-ready deterministic JSON output with original probabilities
+- real 52-article BBC briefing verification with 50 analyses and 2 missing results
+- legacy `briefing` regression verification without loading PyTorch or Transformers
+- 59 passing tests and Ruff check after the Phase 8B implementation
 
 Pending:
 
-- sentiment briefing contract, service, CLI, and persistence-ready JSON shape
+- push the Phase 8B commit and verify the remote branch
 
 ## Immediate Plan
 
@@ -119,6 +128,16 @@ Completion criteria:
 - output remains deterministic for the same stored data
 - the result is structured for later Spring persistence
 - tests and Ruff pass
+
+Phase 8B verification results from August 30, 2026:
+
+- the 52-article BBC benchmark database produced 50 analyzed items and 2 explicit missing items
+- selected labels were 5 positive, 34 neutral, and 11 negative
+- two text runs and two JSON runs were byte-for-byte identical for the same database
+- briefing generation did not change the 52 article rows or 50 analysis rows
+- `torch` and `transformers` remained absent from `sys.modules`
+- the existing `briefing` command remained deterministic and did not load the model runtime
+- the full suite passed with 59 tests and Ruff reported no errors
 
 ## After Windows
 

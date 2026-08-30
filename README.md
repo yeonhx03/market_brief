@@ -18,14 +18,13 @@ PostgreSQL을 통해 macOS/iOS 앱 및 다른 프로그램에 결과를 제공�
 | 기본 브리핑 | 완료 | 최신 기사의 제목, 출처, 시각, URL을 정해진 형식으로 출력합니다. |
 | 감성 분석 결과 저장 | 완료 | 기사별 감성 점수와 분석기 정보를 별도 테이블에 저장합니다. |
 | FinBERT 기사 분석 | 완료 | 실제 `ProsusAI/finbert` CPU 모델로 저장된 기사 제목을 분석하고 결과를 SQLite에 저장합니다. |
-| 감성 브리핑 | 예정 | 저장된 기사와 FinBERT 결과를 함께 읽는 별도 결정론적 브리핑이 필요합니다. |
+| 감성 브리핑 | 완료 | 저장된 기사와 선택한 FinBERT 리비전의 결과를 읽어 결정론적 텍스트와 JSON을 생성합니다. |
 | 관심 종목 기반 브리핑 | 예정 | 종목 및 산업 분야 설정과 관련 기사 필터링이 필요합니다. |
 | LLM 기사 요약 | 예정 | 핵심 수집·분석 흐름이 완성된 후 추가할 계획입니다. |
 
-Windows x86-64 환경에서 실제 `ProsusAI/finbert` CPU 런타임 연결과 기사 단위 분석 검증을
-완료했습니다. 현재 집중 단계는 저장된 분석 결과를 사용하는 별도 감성 브리핑인 Phase 8B입니다.
-Phase 8B가 끝나면 개발 환경은 Intel Mac으로 돌아가 Spring Boot, PostgreSQL, Swift 개발을
-진행합니다.
+Windows x86-64 환경에서 실제 `ProsusAI/finbert` CPU 런타임 연결, 기사 단위 분석, 저장된
+분석 결과 기반 감성 브리핑까지 검증했습니다. Phase 8A와 8B가 완료되어 다음 단계에서는 Intel
+Mac으로 돌아가 Spring Boot, PostgreSQL, Swift 개발을 진행합니다.
 
 현재 `briefing` 명령은 AI로 기사를 요약하지 않습니다. 저장된 최신 기사를 서울 시간 기준으로 정리하는 결정론적 브리핑입니다.
 
@@ -100,6 +99,23 @@ uv run --extra finbert python -m market_brief analyze --limit 10
 현재 분석 경로는 CPU를 명시적으로 사용하며 저장된 기사의 제목만 입력합니다. 같은 기사,
 분석 유형, 모델 이름, 모델 리비전의 결과가 이미 있으면 새 분석 결과를 저장하지 않습니다.
 
+### 5. 저장된 분석 결과 기반 감성 브리핑
+
+텍스트 형식은 선택한 고정 모델 리비전의 저장 결과와 전체 확률을 표시합니다. 분석이 없는
+기사는 `unavailable`로 명시하며 이 명령은 FinBERT 추론을 다시 실행하지 않습니다.
+
+```bash
+uv run python -m market_brief sentiment-briefing --limit 10
+```
+
+향후 Spring Boot API에 저장할 수 있는 결정론적 JSON도 생성할 수 있습니다.
+
+```bash
+uv run python -m market_brief sentiment-briefing \
+  --limit 10 \
+  --format json
+```
+
 다른 데이터베이스 파일을 사용하려면 `--db-path` 옵션을 추가합니다.
 
 ```bash
@@ -133,6 +149,15 @@ Persisted Article
     -> ArticleAnalysis
     -> SQLiteArticleAnalysisRepository
     -> analyze CLI
+```
+
+감성 브리핑은 추론 경로와 분리되어 저장된 결과만 읽습니다.
+
+```text
+Persisted Article + ArticleAnalysis
+    -> GenerateSentimentBriefingService
+    -> SentimentBriefing
+    -> deterministic text / persistence-ready JSON
 ```
 
 장기 통합 구조는 다음과 같습니다.
@@ -182,15 +207,26 @@ src/market_brief/
 현재 고정 모델 리비전은 `4556d13015211d73dccd3fdd39d39232506f3e43`입니다. FinBERT 감성은
 금융 문장의 정서 분류이며 주가 영향 예측이나 매수·매도 신호가 아닙니다.
 
+## 감성 브리핑
+
+`sentiment-briefing`은 기존 `briefing`과 별도 모델 및 서비스로 동작합니다.
+
+- 저장된 기사와 `ArticleAnalysis`만 조회
+- `analysis_type`, 모델 이름, 고정 리비전이 모두 일치하는 결과 선택
+- 같은 분석 결과가 여러 개면 분석 시각과 저장 ID로 결정적으로 선택
+- 선택한 리비전의 분석이 없으면 명시적인 미분석 상태 제공
+- 텍스트에서는 읽기 좋은 백분율, JSON에서는 저장된 원래 확률 유지
+- JSON에 실행 시각을 넣지 않아 같은 저장 데이터에서 동일한 결과 유지
+- 감성을 주가 방향이나 거래 신호로 표현하지 않음
+
 
 ## 향후 계획
 
-1. 실제 저장된 FinBERT 결과 기반 감성 브리핑 구현
-2. Spring Boot REST API와 PostgreSQL 구현
-3. Python HTTP Repository 연결
-4. Linux 서버 배포와 정기 실행
-5. macOS/iOS SwiftUI 앱 구현
-6. 관심 종목, 엔티티 구분, LLM 요약, NewsImpact 확장
+1. Spring Boot REST API와 PostgreSQL 구현
+2. Python HTTP Repository 연결
+3. Linux 서버 배포와 정기 실행
+4. macOS/iOS SwiftUI 앱 구현
+5. 관심 종목, 엔티티 구분, LLM 요약, NewsImpact 확장
 
 ## 프로젝트 문서
 
