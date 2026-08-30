@@ -5,7 +5,7 @@
 Current phase:
 
 ```text
-Phase 8B implementation verified; push and remote verification next
+Phase 11 - Web-first release preparation
 ```
 
 Completed:
@@ -43,12 +43,73 @@ Completed:
 - real 52-article BBC briefing verification with 50 analyses and 2 missing results
 - legacy `briefing` regression verification without loading PyTorch or Transformers
 - 59 passing tests and Ruff check after the Phase 8B implementation
+- Phase 8A and 8B commits merged into GitHub `main` through pull request #1
+- Windows feature branch deleted after merge
+- Intel Mac local `main` fast-forwarded to the merge commit
+- 59 passing tests and Ruff check on the Intel Mac after handoff
+- separate Spring Boot Article, ArticleAnalysis, and Briefing REST contracts implemented locally
+- Spring Data JPA, Flyway V1-V4, PostgreSQL configuration, and duplicate handling implemented
+- `HttpArticleRepository` and `HttpArticleAnalysisRepository` adapters implemented
+- explicit CLI `--api-url` integrated mode without implicit SQLite dual writes
+- 70 passing Python tests and Ruff check after HTTP repository integration
+- React + TypeScript + Vite selected for the first public client
+- web-first repository boundaries, security rules, and deployment sequence documented
+- `HttpBriefingRepository` and shared deterministic Spring payload mapping implemented
+- HTTP `sentiment-briefing` persists once through `POST /api/briefings` without SQLite dual writes
+- 75 passing Python tests and Ruff check after briefing HTTP persistence
+- real PostgreSQL 17 connection, Flyway V1-V4, JPA schema validation, analysis persistence, and
+  briefing persistence/retrieval verified locally
+- live BBC Business RSS -> Python HTTP -> Spring -> PostgreSQL path exercised
+- repeated analysis identity returned the same stored analysis ID
+- live RSS verification exposed a blocking duplicate defect: collecting the same 35-item feed twice
+  stored 70 rows representing only 33 distinct URLs
+- Spring exact-URL duplicate fallback and Flyway V5 unique index implemented
+- all 36 Spring tests passed after URL duplicate regression coverage
+- corrected live BBC RSS verification saved 33 unique URLs on the first run, zero on the identical
+  second run, and left 33 rows with 33 distinct URLs in PostgreSQL
+- Spring `prod` profile, public read/protected write API boundary, restricted CORS, and Actuator
+  health endpoint implemented
+- all 46 Spring tests passed after production-boundary coverage
+- every Python HTTP write adapter sends `X-Market-Brief-Key` from the `WRITE_API_KEY` environment
+  variable while read requests omit the secret
+- 77 passing Python tests and Ruff check after write-key propagation
+- production-profile verification passed: public health returned `UP`, an unauthenticated write was
+  rejected with 401, and authenticated Python writes stored 33 articles, one analysis, and one
+  briefing through Spring in PostgreSQL 17
+- Flyway V1-V5 and the production authentication boundary were verified together
 
 Pending:
 
-- push the Phase 8B commit and verify the remote branch
+- verify the corrected Spring -> PostgreSQL data through the future React client
+- create the separate `market_brief_web` repository and implement the read-only MVP
+- deploy the web, Spring, PostgreSQL, and scheduled Python worker
 
 ## Immediate Plan
+
+### Phase 11: Web-First Release
+
+Goal:
+
+Publish a read-only React web experience before building the Swift clients, while keeping Spring
+as the only public data API and PostgreSQL owner.
+
+Tasks:
+
+1. Add Python briefing HTTP persistence and keep SQLite as a separate offline mode. (complete)
+2. Verify the complete local flow against real PostgreSQL. (complete)
+3. Prepare Spring production profiles, health checks, CORS, and server-to-server write protection.
+   (complete, including Python header propagation and production-profile E2E verification)
+4. Create `market_brief_web` with React, TypeScript, and Vite in a separate repository.
+5. Show the latest briefing, recent articles, sentiment metadata, loading, empty, and error states.
+6. Deploy Spring and PostgreSQL, then connect and deploy the static React build over HTTPS.
+7. Deploy and schedule the Python worker and verify that new results appear in the browser.
+
+Completion criteria:
+
+- a public URL shows the latest persisted briefing and articles
+- React contains no database or worker credentials
+- Python write endpoints are protected independently from CORS
+- a scheduled Python run updates PostgreSQL through Spring and becomes visible on the web
 
 ### Phase 8A: Windows Article-Level FinBERT
 
@@ -150,9 +211,9 @@ Mac sequence:
 3. Connect Spring Data JPA and PostgreSQL.
 4. Add Python `HttpArticleRepository` and `HttpArticleAnalysisRepository` adapters.
 5. Verify RSS -> Spring -> PostgreSQL and FinBERT result -> Spring -> PostgreSQL.
-6. Deploy Python, Spring, and PostgreSQL to a Linux server.
-7. Schedule the Python collection/analysis job on the server.
-8. Build macOS and iOS SwiftUI clients against the Spring API.
+6. Build and publish the React web client against the Spring API.
+7. Deploy and schedule the Python collection/analysis job.
+8. Build macOS and iOS SwiftUI clients against the same Spring API.
 
 ## Deferred Scope
 
@@ -176,6 +237,7 @@ Do not add during the Windows handoff:
 - Integrated mode uses Spring HTTP APIs and PostgreSQL without implicit dual writes.
 - Python owns collection, inference, and briefing generation.
 - Spring owns public REST contracts and PostgreSQL.
+- React is the first public client and uses read-only Spring APIs over HTTPS.
 - Swift clients consume the Spring API and do not run FinBERT locally.
 
 ## Verification Commands

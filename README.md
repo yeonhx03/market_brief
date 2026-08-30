@@ -1,12 +1,13 @@
 # market_brief
 
-RSS 금융 뉴스를 수집해 SQLite에 저장하고, 감성 분석과 개인화 브리핑으로 확장하는 Python CLI 프로젝트로, 현재 개발 중입니다.
+RSS 금융 뉴스를 수집하고 FinBERT로 분석해 브리핑을 생성하는 Python 프로젝트입니다. 로컬에서는
+SQLite를 사용하고, 통합 환경에서는 Spring Boot REST API를 통해 PostgreSQL에 저장합니다.
 
 ## 프로젝트 소개
 
 `market_brief`는 자동매매 프로그램에서 뉴스 수집과 분석을 분리하기 위해 시작했습니다.
-Python은 뉴스 수집, FinBERT 분석, 브리핑 생성을 담당하고, 이후 별도 Spring Boot API와
-PostgreSQL을 통해 macOS/iOS 앱 및 다른 프로그램에 결과를 제공하는 것이 목표입니다.
+Python은 뉴스 수집, FinBERT 분석, 브리핑 생성을 담당하고, 별도 Spring Boot API와
+PostgreSQL을 통해 React 웹과 향후 macOS/iOS 앱에 결과를 제공하는 것이 목표입니다.
 
 ## 현재 구현 상태
 
@@ -19,12 +20,17 @@ PostgreSQL을 통해 macOS/iOS 앱 및 다른 프로그램에 결과를 제공�
 | 감성 분석 결과 저장 | 완료 | 기사별 감성 점수와 분석기 정보를 별도 테이블에 저장합니다. |
 | FinBERT 기사 분석 | 완료 | 실제 `ProsusAI/finbert` CPU 모델로 저장된 기사 제목을 분석하고 결과를 SQLite에 저장합니다. |
 | 감성 브리핑 | 완료 | 저장된 기사와 선택한 FinBERT 리비전의 결과를 읽어 결정론적 텍스트와 JSON을 생성합니다. |
+| Spring HTTP 기사·분석 저장 | 완료 | `--api-url` 통합 모드에서 Spring API를 사용하고 SQLite와 동시에 쓰지 않습니다. |
+| Spring 브리핑 저장 | 완료 | 생성한 브리핑 JSON을 `POST /api/briefings`로 전송합니다. |
+| React 웹 | 설계 완료 | 별도 React + TypeScript + Vite 저장소에서 읽기 전용 첫 화면을 구현할 예정입니다. |
 | 관심 종목 기반 브리핑 | 예정 | 종목 및 산업 분야 설정과 관련 기사 필터링이 필요합니다. |
 | LLM 기사 요약 | 예정 | 핵심 수집·분석 흐름이 완성된 후 추가할 계획입니다. |
 
 Windows x86-64 환경에서 실제 `ProsusAI/finbert` CPU 런타임 연결, 기사 단위 분석, 저장된
-분석 결과 기반 감성 브리핑까지 검증했습니다. Phase 8A와 8B가 완료되어 다음 단계에서는 Intel
-Mac으로 돌아가 Spring Boot, PostgreSQL, Swift 개발을 진행합니다.
+분석 결과 기반 감성 브리핑까지 검증했습니다. Intel Mac에서는 Spring REST 계약과 Python
+HTTP 기사·분석·브리핑 어댑터, 실제 PostgreSQL 실통신, 운영 쓰기 API 키
+전달까지 검증했습니다. 다음 단계는 별도 `market_brief_web` 저장소에서 React 조회
+화면을 구현하는 것입니다.
 
 현재 `briefing` 명령은 AI로 기사를 요약하지 않습니다. 저장된 최신 기사를 서울 시간 기준으로 정리하는 결정론적 브리핑입니다.
 
@@ -108,7 +114,8 @@ uv run --extra finbert python -m market_brief analyze --limit 10
 uv run python -m market_brief sentiment-briefing --limit 10
 ```
 
-향후 Spring Boot API에 저장할 수 있는 결정론적 JSON도 생성할 수 있습니다.
+결정론적 JSON도 생성할 수 있습니다. `--api-url`을 함께 지정하면 같은 payload가 Spring에
+저장됩니다.
 
 ```bash
 uv run python -m market_brief sentiment-briefing \
@@ -129,6 +136,34 @@ uv run python -m market_brief latest \
 ```bash
 uv run python -m market_brief --help
 ```
+
+### Spring 통합 모드
+
+`--api-url`을 지정하면 해당 실행은 SQLite 대신 Spring 저장소만 사용합니다.
+Spring에 설정한 값과 같은 `WRITE_API_KEY`를 Python 실행 환경에도 주입합니다.
+
+```bash
+WRITE_API_KEY="local-development-secret" \
+uv run python -m market_brief collect \
+  --feed-url "https://example.com/feed.xml" \
+  --source "Example News" \
+  --api-url "http://localhost:8080"
+
+WRITE_API_KEY="local-development-secret" \
+uv run --extra finbert python -m market_brief analyze \
+  --limit 10 \
+  --api-url "http://localhost:8080"
+
+WRITE_API_KEY="local-development-secret" \
+uv run python -m market_brief sentiment-briefing \
+  --limit 10 \
+  --api-url "http://localhost:8080"
+```
+
+키는 명령행 옵션으로 받지 않고 환경변수에서 읽습니다. HTTP 어댑터는 Spring의 상태를
+바꾸는 `POST` 요청에만 `X-Market-Brief-Key` 헤더를 보내고, 공개 조회인 `GET`에는 비밀키를
+보내지 않습니다. 운영에서는 키를 소스·`.env`·쉘 히스토리에 저장하지 말고 배포 환경의
+secret 기능으로 주입합니다.
 
 ## 처리 흐름
 
@@ -171,7 +206,8 @@ Python market_brief
 Spring Boot market_brief_api
   -> validation / duplicate handling / REST API
   -> PostgreSQL
-  -> macOS/iOS Swift clients
+  -> React web over HTTPS
+  -> future macOS/iOS Swift clients
 ```
 
 SQLite는 로컬·오프라인 어댑터로 유지합니다. 통합 실행에서는 Python이 PostgreSQL에 직접
@@ -222,11 +258,12 @@ src/market_brief/
 
 ## 향후 계획
 
-1. Spring Boot REST API와 PostgreSQL 구현
-2. Python HTTP Repository 연결
-3. Linux 서버 배포와 정기 실행
-4. macOS/iOS SwiftUI 앱 구현
-5. 관심 종목, 엔티티 구분, LLM 요약, NewsImpact 확장
+1. 로컬 PostgreSQL에서 Python과 Spring의 전체 실통신 검증
+2. Spring 운영 설정, 쓰기 API 보호, CORS와 상태 확인
+3. 별도 React + TypeScript + Vite 웹 구현
+4. 웹, Spring, PostgreSQL 공개 배포와 Python 정기 실행
+5. macOS/iOS SwiftUI 앱 구현
+6. 초기 공개 범위 이후 확장 기능 재검토
 
 ## 프로젝트 문서
 

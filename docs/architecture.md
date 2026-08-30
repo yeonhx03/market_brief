@@ -38,11 +38,8 @@ Spring Boot market_brief_api
       v
 PostgreSQL
 
-macOS/iOS Swift apps
-      |
-      | HTTPS
-      v
-Spring Boot API
+React web (first public client) ---- HTTPS ----> Spring Boot API
+macOS/iOS Swift apps (later) ------- HTTPS ----> Spring Boot API
 ```
 
 The Python and Spring applications communicate through an explicit HTTP/JSON contract. Python
@@ -51,7 +48,7 @@ database schema.
 
 Spring is an intentional learning and portfolio boundary. Direct database access would be simpler
 for one process, but the API demonstrates a real cross-language backend integration and becomes a
-stable interface for Swift clients and future programs.
+stable interface for the React web, future Swift clients, and other programs.
 
 ## 3. Python Internal Architecture
 
@@ -70,7 +67,7 @@ Responsibilities:
 - `domain`: `Article`, `ArticleAnalysis`, `Briefing`, and future pure models
 - `application/ports`: collector, article repository, analysis repository, analyzer contracts
 - `application/services`: collect, query, analyze, and briefing use cases
-- `infrastructure`: RSS, SQLite, future HTTP repositories, and FinBERT runtime adapters
+- `infrastructure`: RSS, SQLite, HTTP repositories, and FinBERT runtime adapters
 - `interfaces`: CLI and future external entry points
 - `bootstrap.py`: concrete dependency construction only
 
@@ -105,7 +102,7 @@ to SQLite and PostgreSQL.
 
 ## 5. Collection And Analysis Lifecycle
 
-The planned integrated lifecycle stores the raw article before inference.
+The integrated lifecycle stores the raw article before inference.
 
 ```text
 1. Python fetches an RSS batch.
@@ -131,7 +128,8 @@ POST /api/briefings
 GET  /api/briefings/latest
 ```
 
-The exact request and response schemas will be decided in the Spring phase.
+These request and response schemas are implemented in the Spring repository and remain the shared
+contract for Python, React, and future Swift clients.
 
 ## 6. Analysis Boundaries
 
@@ -189,11 +187,19 @@ Development environments:
 Production target:
 
 ```text
-Linux server
+Static web host
+  - React + TypeScript + Vite production build
+
+Application and data services
   - Spring Boot: always running
-  - PostgreSQL: always running
+  - PostgreSQL: managed persistent database
   - Python collection/FinBERT job: scheduled, runs, then exits
 ```
+
+The React application is read-only in the first public release. It calls Spring over HTTPS and
+never receives database credentials or the Python worker's write credential. Public read APIs and
+protected server-to-server write APIs are separate security concerns; CORS does not replace
+authentication.
 
 Source code is shared through Git. Virtual environments, downloaded models, caches, databases,
 secrets, Java build output, and Swift build output are recreated or configured per operating
@@ -208,9 +214,11 @@ peak memory, and processing time for representative batches.
 1. Real article-level FinBERT on Windows (complete)
 2. Sentiment briefing completion on Windows (complete)
 3. Return to Intel Mac
-4. Spring Boot REST API and PostgreSQL
-5. Python HTTP repository adapters
-6. Linux server deployment and scheduling
-7. macOS and iOS SwiftUI clients
-8. LLM summaries, entity matching, NewsImpact, and trading-system integration
+4. Spring Boot REST API, JPA, and Flyway (implemented locally)
+5. Python article and analysis HTTP repository adapters (implemented locally)
+6. Briefing HTTP persistence and live PostgreSQL end-to-end verification
+7. React + TypeScript + Vite first public client
+8. Web, Spring, PostgreSQL deployment and Python scheduling
+9. macOS and iOS SwiftUI clients
+10. Post-MVP expansion review
 ```
