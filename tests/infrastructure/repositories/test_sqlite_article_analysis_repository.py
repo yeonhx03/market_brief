@@ -135,6 +135,75 @@ def test_get_by_article_id_returns_empty_then_newest_first(tmp_path):
         saved_old,
     ]
 
+
+def test_has_analysis_matches_article_and_analyzer_identity(tmp_path):
+    db_path = tmp_path / "test.db"
+    article_repository = SQLiteArticleRepository(db_path)
+    analysis_repository = SQLiteArticleAnalysisRepository(db_path)
+    collected_at = datetime(2026, 8, 17, tzinfo=timezone.utc)
+
+    first_article, second_article = article_repository.save_new(
+        [
+            Article(
+                title="First article",
+                url="https://example.com/first",
+                source="Test",
+                published_at=None,
+                collected_at=collected_at,
+            ),
+            Article(
+                title="Second article",
+                url="https://example.com/second",
+                source="Test",
+                published_at=None,
+                collected_at=collected_at,
+            ),
+        ]
+    )
+
+    assert first_article.id is not None
+    assert second_article.id is not None
+    assert not analysis_repository.has_analysis(
+        article_id=first_article.id,
+        analysis_type="text_sentiment",
+        analyzer_name="ProsusAI/finbert",
+        analyzer_version="revision-v1",
+    )
+
+    analysis_repository.save(
+        ArticleAnalysis(
+            article_id=first_article.id,
+            analysis_type="text_sentiment",
+            analyzer_name="ProsusAI/finbert",
+            analyzer_version="revision-v1",
+            analyzed_at=collected_at,
+            text_sentiment="positive",
+            positive_score=0.7,
+            neutral_score=0.2,
+            negative_score=0.1,
+            confidence=0.7,
+        )
+    )
+
+    assert analysis_repository.has_analysis(
+        article_id=first_article.id,
+        analysis_type="text_sentiment",
+        analyzer_name="ProsusAI/finbert",
+        analyzer_version="revision-v1",
+    )
+    assert not analysis_repository.has_analysis(
+        article_id=first_article.id,
+        analysis_type="text_sentiment",
+        analyzer_name="ProsusAI/finbert",
+        analyzer_version="revision-v2",
+    )
+    assert not analysis_repository.has_analysis(
+        article_id=second_article.id,
+        analysis_type="text_sentiment",
+        analyzer_name="ProsusAI/finbert",
+        analyzer_version="revision-v1",
+    )
+
 def test_creates_missing_parent_directory(tmp_path):
     db_path = tmp_path / "nested" / "data" / "test.db"
 

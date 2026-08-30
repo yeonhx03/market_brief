@@ -8,6 +8,19 @@ from market_brief.infrastructure.analyzers.finbert_analyzer import (
 )
 
 
+def test_analyzer_exposes_analysis_identity():
+    analyzer = FinBERTAnalyzer(
+        classifier=lambda text: [],
+        analyzer_name="ProsusAI/finbert",
+        analyzer_version="revision-v1",
+        clock=lambda: datetime.now(timezone.utc),
+    )
+
+    assert analyzer.analysis_type == "text_sentiment"
+    assert analyzer.analyzer_name == "ProsusAI/finbert"
+    assert analyzer.analyzer_version == "revision-v1"
+
+
 def test_analyze_maps_controlled_response_to_article_analysis():
     def fake_classifier(
         text: str,
@@ -58,6 +71,49 @@ def test_analyze_maps_controlled_response_to_article_analysis():
         negative_score=0.1,
         confidence=0.7,
     )
+
+
+def test_analyze_passes_headline_only_to_classifier():
+    received_texts: list[str] = []
+
+    def fake_classifier(
+        text: str,
+    ) -> list[dict[str, str | float]]:
+        received_texts.append(text)
+        return [
+            {"label": "positive", "score": 0.7},
+            {"label": "neutral", "score": 0.2},
+            {"label": "negative", "score": 0.1},
+        ]
+
+    analyzed_at = datetime(
+        2026,
+        8,
+        17,
+        6,
+        0,
+        tzinfo=timezone.utc,
+    )
+    analyzer = FinBERTAnalyzer(
+        classifier=fake_classifier,
+        analyzer_name="controlled-finbert",
+        analyzer_version="test-v1",
+        clock=lambda: analyzed_at,
+    )
+    article = Article(
+        id=42,
+        title="Company reports strong earnings",
+        url="https://example.com/article",
+        source="Test",
+        published_at=analyzed_at,
+        collected_at=analyzed_at,
+        raw_content="Revenue and profit increased.",
+        cleaned_content="Cleaned article body.",
+    )
+
+    analyzer.analyze(article)
+
+    assert received_texts == [article.title]
 
 
 def test_analyze_rejects_article_without_id():

@@ -105,15 +105,26 @@ and later Linux server sizing is not based on an available local GPU. After that
 RTX 2070 SUPER may be tested separately as an optional comparison. CUDA support must not become a
 requirement for collection, deterministic briefing, or normal tests.
 
-Before adding model dependencies, record:
+Recorded runtime details:
 
-- Windows edition and architecture
-- CPU and RAM
-- Python version from `uv run python --version`
-- exact PyTorch CPU build
-- exact Transformers version
-- selected `ProsusAI/finbert` model revision
-- model cache location and size
+- architecture: AMD64, 64-bit Windows
+- Python: `3.11.16`
+- uv: `0.12.5`
+- PyTorch: `2.12.1+cpu`
+- Transformers: `5.15.0`
+- CUDA build: none; CPU execution was used for Phase 8A
+- NVIDIA driver: `591.59`; `nvidia-smi` works, but GPU inference was intentionally deferred
+- selected model: `ProsusAI/finbert`
+- selected revision: `4556d13015211d73dccd3fdd39d39232506f3e43`
+- uv cache: `D:\Caches\uv`
+- uv-managed Python directory: `D:\Tools\uv-python`
+- Hugging Face cache: `D:\Caches\huggingface`
+- observed Hugging Face cache size after model resolution: 835.6 MiB
+
+The selected revision is loaded with `use_safetensors=False`. Hugging Face also created a separate
+safetensors conversion revision in the cache, which explains why total cache use is larger than
+the roughly 418 MiB original PyTorch weight file. Neither cache content nor model weights belong
+in Git.
 
 ## Windows Implementation Scope
 
@@ -154,14 +165,54 @@ Record for 1, 10, and 50 articles:
 - peak process memory
 - success and failure counts
 
+### Phase 8A Results
+
+Phase 8A article-level implementation and technical verification completed on August 30, 2026.
+
+- First real CPU inference downloaded/resolved the model successfully: model loading took
+  16.775 s and inference took 0.063 s.
+- A cached direct model load took 0.853 s and one direct inference took 0.028 s after PyTorch and
+  Transformers had already been imported.
+- The end-to-end standardized measurements below include lazy imports, model construction,
+  inference, and SQLite persistence as separate recorded portions.
+
+| Articles | Model load | Inference and SQLite save | Total | Peak working set | Result |
+| ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | 6.163 s | 0.037 s | 6.199 s | 744.6 MiB | 1 analyzed, 0 skipped |
+| 10 | 6.121 s | 0.293 s | 6.414 s | 747.4 MiB | 10 analyzed, 0 skipped |
+| 50 | 5.887 s | 1.590 s | 7.477 s | 748.9 MiB | 50 analyzed, 0 skipped |
+
+The 50-article set contained 31 BBC Business and 19 BBC Technology headlines. The second
+50-article CLI run reported `Analyzed 0 articles. Skipped 50 existing analyses.` and the database
+still contained exactly 50 analysis rows. Stored probabilities summed to 1 within normal
+floating-point tolerance.
+
+The ordinary `briefing` CLI was run twice with identical output. Immediately afterward,
+`transformers` and `torch` were both absent from `sys.modules`, confirming that the deterministic
+non-analysis path does not load the optional model runtime.
+
+The current CLI constructs the model before it checks each selected article for an existing
+analysis. Duplicate inference and storage are prevented, but an all-skipped run still pays the
+model startup cost. This is a documented optimization opportunity and does not change the stored
+result or Phase 8A correctness.
+
 ### Sentiment briefing
 
-- Keep the existing deterministic briefing unchanged.
-- Add a separate sentiment-aware contract and application service.
-- Use stored results rather than invoking FinBERT during formatting.
-- Handle articles without analysis explicitly.
-- Produce deterministic text and a persistence-ready JSON representation.
-- Do not call the result expected stock movement or a trading signal.
+Phase 8B sentiment briefing implementation and verification completed on August 30, 2026.
+
+- The existing deterministic `briefing` command remains unchanged.
+- Separate `SentimentBriefing` models and `GenerateSentimentBriefingService` read stored results.
+- The selected analysis must match the analysis type, analyzer name, and pinned model revision.
+- Articles without the selected analysis are reported explicitly instead of being treated as neutral.
+- Text and persistence-ready JSON outputs are deterministic for the same stored data.
+- JSON retains original probabilities and omits a live generation timestamp.
+- The briefing path does not construct FinBERT or load PyTorch and Transformers.
+- Output describes headline-language sentiment, not expected stock movement or a trading signal.
+
+The real 52-article BBC benchmark database produced 50 analyzed items and 2 missing items. The
+selected labels were 5 positive, 34 neutral, and 11 negative. Repeated text and JSON runs were
+byte-for-byte identical, and the database remained at 52 article rows and 50 analysis rows. The
+full suite passed with 59 tests and Ruff reported no errors.
 
 ## Windows Completion Gate
 
@@ -176,6 +227,10 @@ Do not return to the Mac until:
 - Ruff passes
 - the working tree contains only intentional changes
 - commits are pushed and visible on GitHub
+
+Phase 8A and Phase 8B requirements, real BBC verification, the full 59-test suite, and Ruff have
+passed. The remaining Windows handoff step is to push the Phase 8B commit and verify it on the
+remote branch. GPU comparison is optional and is not required to complete the handoff.
 
 ## Returning To The Intel Mac
 

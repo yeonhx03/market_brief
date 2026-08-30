@@ -164,10 +164,17 @@ long text, so title-plus-content analysis must wait for explicit cleaning and in
 The existing `Briefing` is deterministic and continues to work without FinBERT. It contains recent
 article titles, sources, timestamps, and links.
 
-Sentiment output should be added through a separate application service or model instead of making
-the deterministic briefing depend on model availability. A future sentiment briefing may combine
-stored article-level probabilities for a clearly defined group and time window, but it must not be
-described as expected stock-price direction.
+Sentiment output uses the separate `SentimentBriefing` model and
+`GenerateSentimentBriefingService`; the existing deterministic briefing does not depend on model
+availability. The service reads stored articles and analyses through repository ports and selects
+an exact analysis type, analyzer name, and analyzer version. Missing selected-version analyses are
+represented explicitly instead of being treated as neutral.
+
+The `sentiment-briefing` CLI produces deterministic text or persistence-ready JSON. The JSON keeps
+the stored probabilities, selected model identity, per-article analysis status, and summary counts.
+It omits a live generation timestamp so the same stored data produces the same payload. Spring may
+assign persistence metadata when it accepts a future briefing request. Neither output is described
+as expected stock-price direction or a trading signal.
 
 Because the scheduled Python process exits after work, a briefing intended for Swift clients must
 be stored through Spring and exposed through `GET /api/briefings/latest`.
@@ -198,8 +205,8 @@ peak memory, and processing time for representative batches.
 ## 9. Future Order
 
 ```text
-1. Real article-level FinBERT on Windows
-2. Sentiment briefing completion on Windows
+1. Real article-level FinBERT on Windows (complete)
+2. Sentiment briefing completion on Windows (complete)
 3. Return to Intel Mac
 4. Spring Boot REST API and PostgreSQL
 5. Python HTTP repository adapters

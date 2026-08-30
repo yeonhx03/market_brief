@@ -44,10 +44,12 @@ def test_analyze_persisted_article_and_store_result_in_sqlite(
     saved_article = article_repository.save_new([article])[0]
 
     assert saved_article.id is not None
+    classifier_inputs: list[str] = []
 
     def fake_classifier(
         text: str,
     ) -> list[dict[str, str | float]]:
+        classifier_inputs.append(text)
         return [
             {"label": "positive", "score": 0.7},
             {"label": "neutral", "score": 0.2},
@@ -67,9 +69,13 @@ def test_analyze_persisted_article_and_store_result_in_sqlite(
     )
 
     saved_analysis = service.execute(saved_article)
+    repeated_result = service.execute(saved_article)
 
+    assert saved_analysis is not None
     assert saved_analysis.id is not None
     assert saved_analysis.article_id == saved_article.id
+    assert repeated_result is None
+    assert classifier_inputs == [saved_article.title]
 
     assert analysis_repository.get_by_article_id(
         saved_article.id

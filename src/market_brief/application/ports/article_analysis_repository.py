@@ -14,3 +14,13 @@ class ArticleAnalysisRepository(Protocol):
     ) -> list[ArticleAnalysis]:
         """Return an article's analyses in newest-first order."""
         ...
+
+    def has_analysis(
+        self,
+        article_id: int,
+        analysis_type: str,
+        analyzer_name: str,
+        analyzer_version: str,
+    ) -> bool:
+        """Return whether the same analysis identity already exists."""
+        ...

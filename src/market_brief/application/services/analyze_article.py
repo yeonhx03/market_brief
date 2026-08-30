@@ -17,6 +17,20 @@ class AnalyzeArticleService:
         self.analyzer = analyzer
         self.repository = repository
 
-    def execute(self, article: Article) -> ArticleAnalysis:
+    def execute(
+        self,
+        article: Article,
+    ) -> ArticleAnalysis | None:
+        if article.id is None:
+            raise ValueError("article must be persisted before analysis")
+
+        if self.repository.has_analysis(
+            article_id=article.id,
+            analysis_type=self.analyzer.analysis_type,
+            analyzer_name=self.analyzer.analyzer_name,
+            analyzer_version=self.analyzer.analyzer_version,
+        ):
+            return None
+
         analysis = self.analyzer.analyze(article)
         return self.repository.save(analysis)

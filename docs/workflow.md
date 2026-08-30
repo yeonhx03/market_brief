@@ -5,7 +5,7 @@
 Current phase:
 
 ```text
-Phase 8A - real article-level FinBERT runtime preparation
+Phase 8B implementation verified; push and remote verification next
 ```
 
 Completed:
@@ -17,7 +17,7 @@ Completed:
 - `collect` and `latest` CLI commands
 - deterministic `Briefing` and `briefing` CLI command
 - optional persisted `Article.id`
-- strict `ArticleAnalysis` domain model
+- `ArticleAnalysis` domain model
 - SQLite analysis persistence and foreign-key verification
 - `TextSentimentAnalyzer` and `ArticleAnalysisRepository` ports
 - controlled `FinBERTAnalyzer` mapping and validation
@@ -26,16 +26,27 @@ Completed:
 - SQLite repositories create missing database parent directories on a fresh clone
 - nested SQLite database files under `data/` are ignored by Git
 - Windows installs `tzdata` conditionally for `ZoneInfo("Asia/Seoul")`
-- 29 passing tests and Ruff check at the Mac handoff review
+- optional PyTorch `2.12.1+cpu` and Transformers `5.15.0` runtime
+- real `ProsusAI/finbert` classifier wrapper pinned to a model revision
+- headline-only CPU inference with explicit truncation and maximum length 512
+- analysis bootstrap factory and `analyze` CLI command
+- repeated-analysis prevention by article, analysis type, analyzer, and version
+- real BBC article persistence and 1/10/50-article CPU benchmarks
+- non-analysis CLI verification without loading PyTorch or Transformers
+- 42 passing tests and Ruff check after the Phase 8A implementation
+- separate `SentimentBriefing` and `SentimentBriefingItem` domain contract
+- stored-analysis-only `GenerateSentimentBriefingService`
+- exact analysis selection by type, analyzer name, and pinned revision
+- explicit missing-analysis handling
+- deterministic `sentiment-briefing` text output
+- persistence-ready deterministic JSON output with original probabilities
+- real 52-article BBC briefing verification with 50 analyses and 2 missing results
+- legacy `briefing` regression verification without loading PyTorch or Transformers
+- 59 passing tests and Ruff check after the Phase 8B implementation
 
 Pending:
 
-- real PyTorch and Transformers runtime
-- real `ProsusAI/finbert` classifier wrapper
-- analysis bootstrap factory and CLI
-- repeated-analysis prevention
-- real BBC article verification and benchmark
-- sentiment briefing contract, service, CLI, and persistence-ready JSON shape
+- push the Phase 8B commit and verify the remote branch
 
 ## Immediate Plan
 
@@ -67,6 +78,34 @@ Completion criteria:
 - collection, latest, and deterministic briefing still work without loading FinBERT
 - tests and Ruff pass
 
+Phase 8A verification environment:
+
+- Windows 10 Home build `19045.7663`, x86-64
+- Intel Core i7-10700K, 16 GB RAM
+- Python `3.11.16`
+- PyTorch `2.12.1+cpu`, Transformers `5.15.0`
+- model `ProsusAI/finbert`
+- revision `4556d13015211d73dccd3fdd39d39232506f3e43`
+- CPU execution; CUDA was intentionally not used
+
+Cached-model benchmark results from August 30, 2026:
+
+| Articles | Model load | Inference and SQLite save | Total | Peak working set |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 6.163 s | 0.037 s | 6.199 s | 744.6 MiB |
+| 10 | 6.121 s | 0.293 s | 6.414 s | 747.4 MiB |
+| 50 | 5.887 s | 1.590 s | 7.477 s | 748.9 MiB |
+
+The 1- and 10-article measurements used BBC Business headlines. The 50-article measurement used
+31 BBC Business and 19 BBC Technology headlines because the live Business feed contained only 33
+items. All selected articles were analyzed once and stored. Repeating the 50-article CLI command
+reported zero new analyses and 50 skipped existing analyses.
+
+Model loading dominates the CPU runtime. After loading, inference and persistence averaged about
+30 ms per headline. The current CLI still loads the model before discovering that every selected
+article already has the same-version result; it prevents duplicate inference and storage, but this
+startup cost is a possible later optimization rather than a Phase 8A correctness blocker.
+
 ### Phase 8B: Sentiment Briefing
 
 Goal:
@@ -89,6 +128,16 @@ Completion criteria:
 - output remains deterministic for the same stored data
 - the result is structured for later Spring persistence
 - tests and Ruff pass
+
+Phase 8B verification results from August 30, 2026:
+
+- the 52-article BBC benchmark database produced 50 analyzed items and 2 explicit missing items
+- selected labels were 5 positive, 34 neutral, and 11 negative
+- two text runs and two JSON runs were byte-for-byte identical for the same database
+- briefing generation did not change the 52 article rows or 50 analysis rows
+- `torch` and `transformers` remained absent from `sys.modules`
+- the existing `briefing` command remained deterministic and did not load the model runtime
+- the full suite passed with 59 tests and Ruff reported no errors
 
 ## After Windows
 
