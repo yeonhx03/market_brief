@@ -40,6 +40,16 @@ class FakeGenerateBriefingService:
         return self.briefing
 
 
+class FakeAnalyzeArticleService:
+    def __init__(self, results: list[object | None]) -> None:
+        self.results = results
+        self.received_articles: list[Article] = []
+
+    def execute(self, article: Article) -> object | None:
+        self.received_articles.append(article)
+        return self.results[len(self.received_articles) - 1]
+
+
 def test_run_collect_builds_service_and_prints_saved_count(
     monkeypatch,
     capsys,
@@ -186,3 +196,142 @@ def test_main_builds_briefing_service_and_prints_items(
         "   Test Source | Published: 2026-08-17T18:00:00+09:00\n"
         "   https://example.com/market-update\n"
     )
+
+
+def test_parser_accepts_analyze_arguments():
+    args = commands.build_parser().parse_args(
+        [
+            "analyze",
+            "--limit",
+            "3",
+            "--db-path",
+            "test.db",
+        ]
+    )
+
+    assert args.command == "analyze"
+    assert args.limit == 3
+    assert args.db_path == "test.db"
+
+
+def test_run_analyze_counts_new_and_existing_analyses(
+    monkeypatch,
+    capsys,
+):
+    collected_at = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    articles = [
+        Article(
+            id=1,
+            title="New analysis",
+            url="https://example.com/new",
+            source="Test",
+            published_at=None,
+            collected_at=collected_at,
+        ),
+        Article(
+            id=2,
+            title="Existing analysis",
+            url="https://example.com/existing",
+            source="Test",
+            published_at=None,
+            collected_at=collected_at,
+        ),
+    ]
+    article_service = FakeGetLatestArticlesService(articles)
+    analysis_service = FakeAnalyzeArticleService([object(), None])
+    factory_paths: dict[str, str] = {}
+
+    def fake_build_get_latest_articles_service(db_path):
+        factory_paths["articles"] = db_path
+        return article_service
+
+    def fake_build_analyze_article_service(db_path):
+        factory_paths["analyses"] = db_path
+        return analysis_service
+
+    monkeypatch.setattr(
+        commands,
+        "build_get_latest_articles_service",
+        fake_build_get_latest_articles_service,
+    )
+    monkeypatch.setattr(
+        commands,
+        "build_analyze_article_service",
+        fake_build_analyze_article_service,
+    )
+    args = argparse.Namespace(
+        command="analyze",
+        limit=2,
+        db_path="test.db",
+    )
+
+    commands.run_analyze(args)
+
+    assert factory_paths == {
+        "articles": "test.db",
+        "analyses": "test.db",
+    }
+    assert article_service.requested_limit == 2
+    assert analysis_service.received_articles == articles
+    assert capsys.readouterr().out == (
+        "Analyzed 1 articles. Skipped 1 existing analyses.\n"
+    )
+
+
+def test_run_analyze_does_not_build_model_when_no_articles(
+    monkeypatch,
+    capsys,
+):
+    article_service = FakeGetLatestArticlesService([])
+    monkeypatch.setattr(
+        commands,
+        "build_get_latest_articles_service",
+        lambda db_path: article_service,
+    )
+
+    def fail_if_model_is_built(db_path):
+        raise AssertionError("empty article list must not build FinBERT")
+
+    monkeypatch.setattr(
+        commands,
+        "build_analyze_article_service",
+        fail_if_model_is_built,
+    )
+    args = argparse.Namespace(
+        command="analyze",
+        limit=10,
+        db_path="test.db",
+    )
+
+    commands.run_analyze(args)
+
+    assert article_service.requested_limit == 10
+    assert capsys.readouterr().out == "No articles found.\n"
+
+
+def test_main_dispatches_analyze_command(monkeypatch):
+    received_args: list[argparse.Namespace] = []
+    monkeypatch.setattr(
+        commands,
+        "run_analyze",
+        received_args.append,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "market_brief",
+            "analyze",
+            "--limit",
+            "4",
+            "--db-path",
+            "test.db",
+        ],
+    )
+
+    commands.main()
+
+    assert len(received_args) == 1
+    assert received_args[0].command == "analyze"
+    assert received_args[0].limit == 4
+    assert received_args[0].db_path == "test.db"
