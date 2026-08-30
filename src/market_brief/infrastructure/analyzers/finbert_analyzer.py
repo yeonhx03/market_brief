@@ -12,6 +12,8 @@ Clock = Callable[[], datetime]
 
 
 class FinBERTAnalyzer:
+    analysis_type = "text_sentiment"
+    
     def __init__(
         self,
         classifier: Classifier,
@@ -74,7 +76,7 @@ class FinBERTAnalyzer:
 
         return ArticleAnalysis(
             article_id=article.id,
-            analysis_type="text_sentiment",
+            analysis_type=self.analysis_type,
             analyzer_name=self.analyzer_name,
             analyzer_version=self.analyzer_version,
             analyzed_at=self.clock(),

@@ -120,6 +120,39 @@ class SQLiteArticleAnalysisRepository:
         return [self._row_to_analysis(row) for row in rows]
 
 
+    def has_analysis(
+        self,
+        article_id: int,
+        analysis_type: str,
+        analyzer_name: str,
+        analyzer_version: str,
+    ) -> bool:
+        connection = self._connect()
+
+        try:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM article_analyses
+                WHERE article_id = ?
+                  AND analysis_type = ?
+                  AND analyzer_name = ?
+                  AND analyzer_version = ?
+                LIMIT 1
+                """,
+                (
+                    article_id,
+                    analysis_type,
+                    analyzer_name,
+                    analyzer_version,
+                ),
+            ).fetchone()
+        finally:
+            connection.close()
+
+        return row is not None
+
+
     @staticmethod
     def _datetime_to_text(value: datetime) -> str:
         if value.tzinfo is None:

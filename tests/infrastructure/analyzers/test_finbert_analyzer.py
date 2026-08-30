@@ -8,6 +8,19 @@ from market_brief.infrastructure.analyzers.finbert_analyzer import (
 )
 
 
+def test_analyzer_exposes_analysis_identity():
+    analyzer = FinBERTAnalyzer(
+        classifier=lambda text: [],
+        analyzer_name="ProsusAI/finbert",
+        analyzer_version="revision-v1",
+        clock=lambda: datetime.now(timezone.utc),
+    )
+
+    assert analyzer.analysis_type == "text_sentiment"
+    assert analyzer.analyzer_name == "ProsusAI/finbert"
+    assert analyzer.analyzer_version == "revision-v1"
+
+
 def test_analyze_maps_controlled_response_to_article_analysis():
     def fake_classifier(
         text: str,
