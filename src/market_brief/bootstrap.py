@@ -112,11 +112,13 @@ def build_http_collect_news_service(
     feed_url: str,
     source: str,
     api_url: str,
+    ticker: str | None = None,
 ) -> CollectNewsService:
     collector = RSSCollector(feed_url=feed_url, source=source)
     repository = HttpArticleRepository(
         base_url=api_url,
         api_key=_write_api_key(),
+        ticker=ticker,
     )
 
     return CollectNewsService(

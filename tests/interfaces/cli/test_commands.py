@@ -4,6 +4,8 @@ import sys
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from market_brief.domain.models.article import Article
 from market_brief.domain.models.article_analysis import ArticleAnalysis
 from market_brief.domain.models.briefing import Briefing, BriefingItem
@@ -112,6 +114,140 @@ def test_run_collect_builds_service_and_prints_saved_count(
         "db_path": "test.db",
     }
     assert capsys.readouterr().out == "Saved 1 new articles.\n"
+
+
+def test_parser_accepts_and_normalizes_collect_ticker():
+    args = commands.build_parser().parse_args(
+        [
+            "collect",
+            "--feed-url",
+            "https://example.com/feed.xml",
+            "--source",
+            "Test Source",
+            "--api-url",
+            "http://localhost:8080",
+            "--ticker",
+            "aapl",
+        ]
+    )
+
+    assert args.ticker == "AAPL"
+
+
+def test_parser_rejects_invalid_collect_ticker():
+    with pytest.raises(SystemExit):
+        commands.build_parser().parse_args(
+            [
+                "collect",
+                "--feed-url",
+                "https://example.com/feed.xml",
+                "--source",
+                "Test Source",
+                "--ticker",
+                "AAPL!",
+            ]
+        )
+
+
+def test_run_collect_passes_explicit_ticker_only_to_http_builder(
+    monkeypatch,
+    capsys,
+):
+    factory_arguments: dict[str, str | None] = {}
+
+    def fake_build_http_collect_news_service(
+        feed_url,
+        source,
+        api_url,
+        ticker,
+    ):
+        factory_arguments.update(
+            feed_url=feed_url,
+            source=source,
+            api_url=api_url,
+            ticker=ticker,
+        )
+        return FakeCollectNewsService()
+
+    monkeypatch.setattr(
+        commands,
+        "build_http_collect_news_service",
+        fake_build_http_collect_news_service,
+    )
+    monkeypatch.setattr(
+        commands,
+        "build_collect_news_service",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("HTTP mode must not build SQLite")
+        ),
+    )
+
+    commands.run_collect(
+        argparse.Namespace(
+            command="collect",
+            feed_url="https://example.com/feed.xml",
+            source="Test Source",
+            db_path="unused.db",
+            api_url="http://localhost:8080",
+            ticker="AAPL",
+        )
+    )
+
+    assert factory_arguments == {
+        "feed_url": "https://example.com/feed.xml",
+        "source": "Test Source",
+        "api_url": "http://localhost:8080",
+        "ticker": "AAPL",
+    }
+    assert capsys.readouterr().out == "Saved 1 new articles.\n"
+
+
+def test_run_collect_rejects_ticker_in_sqlite_mode(monkeypatch):
+    monkeypatch.setattr(
+        commands,
+        "build_collect_news_service",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("invalid mode must not build SQLite")
+        ),
+    )
+
+    with pytest.raises(ValueError, match="--ticker requires --api-url"):
+        commands.run_collect(
+            argparse.Namespace(
+                command="collect",
+                feed_url="https://example.com/feed.xml",
+                source="Test Source",
+                db_path="test.db",
+                api_url=None,
+                ticker="AAPL",
+            )
+        )
+
+
+def test_main_reports_collect_ticker_requires_http_mode(
+    monkeypatch,
+    capsys,
+):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "market_brief",
+            "collect",
+            "--feed-url",
+            "https://example.com/feed.xml",
+            "--source",
+            "Test Source",
+            "--ticker",
+            "AAPL",
+        ],
+    )
+
+    with pytest.raises(SystemExit):
+        commands.main()
+
+    assert "--ticker requires --api-url" in capsys.readouterr().err
+
 
 def test_run_latest_builds_service_and_prints_articles(
     monkeypatch,

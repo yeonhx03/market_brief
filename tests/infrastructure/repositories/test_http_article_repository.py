@@ -57,6 +57,98 @@ def test_save_new_posts_articles_and_skips_spring_duplicates():
     assert result == [make_article("new-article", article_id=42)]
 
 
+def test_save_new_links_ticker_for_created_and_existing_articles():
+    linked_article_ids: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers[WRITE_API_KEY_HEADER] == "test-secret"
+
+        if request.url.path.endswith("/tickers"):
+            linked_article_ids.append(int(request.url.path.split("/")[3]))
+            assert json.loads(request.content) == {"ticker": "AAPL"}
+            return httpx.Response(204)
+
+        payload = json.loads(request.content)
+
+        if payload["sourceArticleId"] == "duplicate":
+            return httpx.Response(
+                409,
+                json={
+                    "code": "ARTICLE_DUPLICATE",
+                    "existingArticleId": 41,
+                },
+            )
+
+        return httpx.Response(201, json={"id": 42, **payload})
+
+    with httpx.Client(
+        base_url="http://api.test",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        repository = HttpArticleRepository(
+            "http://api.test",
+            client=client,
+            api_key="test-secret",
+            ticker="AAPL",
+        )
+        result = repository.save_new(
+            [make_article("new-article"), make_article("duplicate")]
+        )
+
+    assert result == [make_article("new-article", article_id=42)]
+    assert linked_article_ids == [42, 41]
+
+
+def test_save_new_rejects_duplicate_without_id_when_linking_ticker():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            409,
+            json={
+                "code": "ARTICLE_DUPLICATE",
+                "existingArticleId": None,
+            },
+        )
+
+    with httpx.Client(
+        base_url="http://api.test",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        repository = HttpArticleRepository(
+            "http://api.test",
+            client=client,
+            ticker="AAPL",
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="duplicate response requires existingArticleId",
+        ):
+            repository.save_new([make_article("duplicate")])
+
+
+@pytest.mark.parametrize("status_code", [400, 401, 404])
+def test_save_new_propagates_ticker_link_errors(status_code):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/tickers"):
+            return httpx.Response(status_code)
+
+        payload = json.loads(request.content)
+        return httpx.Response(201, json={"id": 42, **payload})
+
+    with httpx.Client(
+        base_url="http://api.test",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        repository = HttpArticleRepository(
+            "http://api.test",
+            client=client,
+            ticker="AAPL",
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            repository.save_new([make_article("new-article")])
+
+
 def test_get_latest_maps_spring_response_to_articles():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/articles/latest"

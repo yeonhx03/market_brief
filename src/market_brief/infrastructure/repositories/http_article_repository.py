@@ -14,9 +14,11 @@ class HttpArticleRepository:
         base_url: str,
         client: httpx.Client | None = None,
         api_key: str | None = None,
+        ticker: str | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.write_headers = build_write_headers(api_key)
+        self.ticker = ticker
         self.client = client or httpx.Client(
             base_url=self.base_url,
             timeout=10.0,
@@ -33,10 +35,20 @@ class HttpArticleRepository:
             )
 
             if response.status_code == 409:
+                if self.ticker is not None:
+                    self._link_ticker(
+                        self._duplicate_article_id(response),
+                        self.ticker,
+                    )
                 continue
 
             response.raise_for_status()
-            saved_articles.append(self._payload_to_article(response.json()))
+            saved_article = self._payload_to_article(response.json())
+
+            if self.ticker is not None:
+                self._link_ticker(saved_article.id, self.ticker)
+
+            saved_articles.append(saved_article)
 
         return saved_articles
 
@@ -59,6 +71,35 @@ class HttpArticleRepository:
         raise NotImplementedError(
             "Article search is not available in the initial Spring API"
         )
+
+    def _link_ticker(self, article_id: int | None, ticker: str) -> None:
+        if article_id is None:
+            raise RuntimeError("persisted article must have an id")
+
+        response = self.client.post(
+            f"/api/articles/{article_id}/tickers",
+            json={"ticker": ticker},
+            headers=self.write_headers,
+        )
+        response.raise_for_status()
+
+    @staticmethod
+    def _duplicate_article_id(response: httpx.Response) -> int:
+        try:
+            article_id = response.json().get("existingArticleId")
+        except (AttributeError, ValueError) as error:
+            raise RuntimeError(
+                "Spring duplicate response requires existingArticleId "
+                "when ticker linking is enabled"
+            ) from error
+
+        if isinstance(article_id, bool) or not isinstance(article_id, int):
+            raise RuntimeError(
+                "Spring duplicate response requires existingArticleId "
+                "when ticker linking is enabled"
+            )
+
+        return article_id
 
     @staticmethod
     def _article_to_payload(article: Article) -> dict[str, object]:

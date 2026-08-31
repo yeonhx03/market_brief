@@ -175,6 +175,23 @@ def test_build_http_collect_service_propagates_write_api_key(monkeypatch):
     service.repository.client.close()
 
 
+def test_build_http_collect_service_configures_explicit_ticker(monkeypatch):
+    monkeypatch.setenv("WRITE_API_KEY", "test-secret")
+
+    service = build_http_collect_news_service(
+        feed_url="https://example.com/feed.xml",
+        source="Example News",
+        api_url="http://api.test",
+        ticker="AAPL",
+    )
+
+    assert service.repository.ticker == "AAPL"
+    assert service.repository.write_headers == {
+        WRITE_API_KEY_HEADER: "test-secret"
+    }
+    service.repository.client.close()
+
+
 def test_build_http_analyze_service_propagates_write_api_key(
     monkeypatch,
 ):

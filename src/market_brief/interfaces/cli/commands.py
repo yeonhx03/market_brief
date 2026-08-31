@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import re
 from market_brief.bootstrap import (
     build_generate_sentiment_briefing_service,
 )
@@ -54,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     collect_parser.add_argument(
         "--api-url",
         help="Spring API base URL; selects HTTP persistence mode.",
+    )
+    collect_parser.add_argument(
+        "--ticker",
+        type=_parse_ticker,
+        help="Explicit ticker to link to collected articles in HTTP mode.",
     )
 
     latest_parser = subparsers.add_parser(
@@ -144,11 +150,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_collect(args: argparse.Namespace) -> None:
+    ticker = getattr(args, "ticker", None)
+
+    if ticker is not None and not getattr(args, "api_url", None):
+        raise ValueError("--ticker requires --api-url")
+
     if getattr(args, "api_url", None):
         service = build_http_collect_news_service(
             feed_url=args.feed_url,
             source=args.source,
             api_url=args.api_url,
+            ticker=ticker,
         )
     else:
         service = build_collect_news_service(
@@ -160,6 +172,15 @@ def run_collect(args: argparse.Namespace) -> None:
     saved_articles = asyncio.run(service.execute())
 
     print(f"Saved {len(saved_articles)} new articles.")
+
+
+def _parse_ticker(value: str) -> str:
+    if re.fullmatch(r"[A-Za-z][A-Za-z0-9.-]{0,15}", value) is None:
+        raise argparse.ArgumentTypeError(
+            "ticker must match [A-Za-z][A-Za-z0-9.-]{0,15}"
+        )
+
+    return value.upper()
 
 
 def run_latest(args: argparse.Namespace) -> None:
@@ -316,6 +337,13 @@ def run_analyze(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if (
+        args.command == "collect"
+        and args.ticker is not None
+        and not args.api_url
+    ):
+        parser.error("--ticker requires --api-url")
 
     if args.command == "collect":
         run_collect(args)
